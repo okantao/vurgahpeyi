@@ -2,6 +2,7 @@ package com.amiral.ui;
 
 import com.amiral.model.Weapon;
 import java.awt.BasicStroke;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
@@ -37,7 +38,7 @@ public class WeaponPanel extends JPanel {
     private transient Consumer<Weapon> onChange = w -> { };
 
     public WeaponPanel() {
-        super(new FlowLayout(FlowLayout.CENTER, Theme.GAP, 2));
+        super(new BorderLayout(0, 2));
         setOpaque(false);
         JPanel row = new JPanel(new GridLayout(1, 3, Theme.GAP, 0));
         row.setOpaque(false);
@@ -56,9 +57,14 @@ public class WeaponPanel extends JPanel {
             buttons.put(w, b);
         }
         enemyLabel.setForeground(Theme.TEXT_DIM);
-        enemyLabel.setBorder(BorderFactory.createEmptyBorder(0, Theme.GAP, 0, 0));
-        add(row);
-        add(enemyLabel);
+        enemyLabel.setFont(enemyLabel.getFont().deriveFont(12f));
+        enemyLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        enemyLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 4, 0));
+        JPanel centred = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        centred.setOpaque(false);
+        centred.add(row);
+        add(centred, BorderLayout.CENTER);
+        add(enemyLabel, BorderLayout.SOUTH);
         reset();
     }
 
