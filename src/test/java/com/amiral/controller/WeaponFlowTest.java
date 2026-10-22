@@ -181,11 +181,13 @@ class WeaponFlowTest {
         FakeNetwork other = new FakeNetwork();
         GameController lonely = new GameController(db, other.server, Runnable::run, Runnable::run);
         lonely.startServer(9091, "Alone");
-        GameController joiner = new GameController(Database.open(Database.MEMORY_URL), other.client,
-                Runnable::run, Runnable::run);
+        Database joinerDb = Database.open(Database.MEMORY_URL);
+        joinerDb.initSchema();
+        GameController joiner = new GameController(joinerDb, other.client, Runnable::run, Runnable::run);
         joiner.connect("127.0.0.1", 9091, "Joiner");
         lonely.onMessage(Message.torpedo("A1"));
         assertEquals("GAME_NOT_STARTED", other.server.lastSent().field(0));
         db.close();
+        joinerDb.close();
     }
 }
