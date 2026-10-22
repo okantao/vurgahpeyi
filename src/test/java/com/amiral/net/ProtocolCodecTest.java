@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import com.amiral.model.Board;
+import com.amiral.model.Coordinate;
+import com.amiral.model.ShotOutcome;
+import com.amiral.model.ShotResult;
 import com.amiral.model.RandomFleetGenerator;
 import com.amiral.model.Ship;
 import com.amiral.model.ShipType;
@@ -29,6 +32,10 @@ class ProtocolCodecTest {
                 Message.shoot("B7"),
                 Message.shot("LOCAL", "A5", "SUNK", "DESTROYER"),
                 Message.result("A5", "HIT", null),
+                Message.radar("C3"),
+                Message.radarResult("C3", "B2,B3"),
+                Message.torpedo("E5"),
+                Message.torpedoResult("E5", "D4:MISS:,E5:SUNK:DESTROYER"),
                 Message.chat("LOCAL", "hello"),
                 Message.gameOver(true),
                 Message.quit(),
@@ -109,5 +116,32 @@ class ProtocolCodecTest {
         "CARRIER:A1H;CARRIER:B1H"})
     void invalidFleetFails(String text) {
         assertThrows(ProtocolException.class, () -> ProtocolCodec.decodeFleet(text));
+    }
+
+    @Test
+    void cellsRoundTrip() throws ProtocolException {
+        List<Coordinate> cells = List.of(Coordinate.parse("A1"), Coordinate.parse("J10"));
+        assertEquals("A1,J10", ProtocolCodec.encodeCells(cells));
+        assertEquals(cells, ProtocolCodec.decodeCells("A1,J10"));
+        assertEquals(List.of(), ProtocolCodec.decodeCells(""));
+        assertEquals("", ProtocolCodec.encodeCells(List.of()));
+        assertThrows(ProtocolException.class, () -> ProtocolCodec.decodeCells("A1,K1"));
+    }
+
+    @Test
+    void outcomesRoundTrip() throws ProtocolException {
+        List<ShotOutcome> list = List.of(
+                ShotOutcome.of(Coordinate.parse("D4"), ShotResult.MISS),
+                new ShotOutcome(Coordinate.parse("E5"), ShotResult.SUNK, ShipType.DESTROYER, List.of()));
+        String text = ProtocolCodec.encodeOutcomes(list);
+        assertEquals("D4:MISS:,E5:SUNK:DESTROYER", text);
+        assertEquals(list, ProtocolCodec.decodeOutcomes(text));
+        assertEquals(List.of(), ProtocolCodec.decodeOutcomes(""));
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"D4:MISS", "D4:BOOM:", "K4:HIT:", "D4:SUNK:BOAT"})
+    void invalidOutcomesFail(String text) {
+        assertThrows(ProtocolException.class, () -> ProtocolCodec.decodeOutcomes(text));
     }
 }

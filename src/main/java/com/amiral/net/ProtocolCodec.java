@@ -4,7 +4,10 @@ import com.amiral.model.Coordinate;
 import com.amiral.model.Orientation;
 import com.amiral.model.Ship;
 import com.amiral.model.ShipType;
+import com.amiral.model.ShotOutcome;
+import com.amiral.model.ShotResult;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.EnumMap;
@@ -95,5 +98,56 @@ public final class ProtocolCodec {
             }
         }
         return fleet;
+    }
+
+    /** Cells as {@code A1,B2,C3}; empty string for none. */
+    public static String encodeCells(List<Coordinate> cells) {
+        StringJoiner joiner = new StringJoiner(",");
+        cells.forEach(c -> joiner.add(c.toString()));
+        return joiner.toString();
+    }
+
+    public static List<Coordinate> decodeCells(String text) throws ProtocolException {
+        List<Coordinate> cells = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return cells;
+        }
+        for (String part : text.split(",")) {
+            try {
+                cells.add(Coordinate.parse(part));
+            } catch (IllegalArgumentException e) {
+                throw new ProtocolException("Invalid cell: " + part, e);
+            }
+        }
+        return cells;
+    }
+
+    /** Shot outcomes as {@code A1:HIT:,A2:SUNK:DESTROYER}. Sunk cells are not sent. */
+    public static String encodeOutcomes(List<ShotOutcome> outcomes) {
+        StringJoiner joiner = new StringJoiner(",");
+        for (ShotOutcome o : outcomes) {
+            joiner.add(o.coordinate() + ":" + o.result().name() + ":" + (o.sunkType() == null ? "" : o.sunkType().name()));
+        }
+        return joiner.toString();
+    }
+
+    public static List<ShotOutcome> decodeOutcomes(String text) throws ProtocolException {
+        List<ShotOutcome> list = new ArrayList<>();
+        if (text == null || text.isBlank()) {
+            return list;
+        }
+        for (String part : text.split(",")) {
+            String[] f = part.split(":", -1);
+            if (f.length != 3) {
+                throw new ProtocolException("Invalid outcome: " + part);
+            }
+            try {
+                ShipType type = f[2].isEmpty() ? null : ShipType.valueOf(f[2]);
+                list.add(new ShotOutcome(Coordinate.parse(f[0]), ShotResult.valueOf(f[1]), type, List.of()));
+            } catch (IllegalArgumentException e) {
+                throw new ProtocolException("Invalid outcome: " + part, e);
+            }
+        }
+        return list;
     }
 }

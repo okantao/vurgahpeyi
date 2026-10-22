@@ -54,6 +54,24 @@ public record Message(MessageType type, List<String> fields) {
         return of(MessageType.RESULT, coord, result, shipType == null ? "" : shipType);
     }
 
+    public static Message radar(String coord) {
+        return of(MessageType.RADAR, coord);
+    }
+
+    /** {@code cells} = ship cells found in the 4x4 area, comma separated (may be empty). */
+    public static Message radarResult(String coord, String cells) {
+        return of(MessageType.RADAR_RESULT, coord, cells);
+    }
+
+    public static Message torpedo(String coord) {
+        return of(MessageType.TORPEDO, coord);
+    }
+
+    /** {@code outcomes} = {@code A1:HIT:,A2:SUNK:DESTROYER,...} for every newly shot cell. */
+    public static Message torpedoResult(String coord, String outcomes) {
+        return of(MessageType.TORPEDO_RESULT, coord, outcomes);
+    }
+
     public static Message chat(String sender, String body) {
         return of(MessageType.CHAT, sender, ProtocolCodec.b64(body));
     }
