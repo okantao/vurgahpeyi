@@ -1,0 +1,168 @@
+@startuml class
+title BattleShip v1.0 - Class diagram
+skinparam classAttributeIconSize 0
+hide empty members
+
+package com.amiral.model {
+  class Coordinate <<record>> {
+    +row : char
+    +col : int
+    +{static} parse(s) : Coordinate
+    +{static} of(rowIndex, col) : Coordinate
+    +offset(dRow, dCol) : Optional<Coordinate>
+  }
+  enum Orientation {
+    H
+    V
+  }
+  enum ShipType {
+    CARRIER
+    BATTLESHIP
+    CRUISER
+    SUBMARINE
+    DESTROYER
+  }
+  class Ship <<record>> {
+    +type : ShipType
+    +start : Coordinate
+    +orientation : Orientation
+    +cells() : List<Coordinate>
+    +isSunk(hits) : boolean
+  }
+  class Board {
+    +canPlace(Ship) : boolean
+    +placeShip(Ship)
+    +receiveShot(Coordinate) : ShotOutcome
+    +isFleetComplete() : boolean
+    +allSunk() : boolean
+  }
+  class ShotOutcome <<record>>
+  enum ShotResult {
+    MISS
+    HIT
+    SUNK
+    ALREADY_SHOT
+  }
+  enum GameState {
+    SETUP
+    WAITING
+    PLAYING
+    FINISHED
+    ABORTED
+  }
+  class GameEngine {
+    +setLocalFleet(Board)
+    +markReady(local)
+    +fireAt(Coordinate)
+    +applyOpponentShotResult(c, r, sunk)
+    +receiveEnemyShot(Coordinate) : ShotOutcome
+    +winner() : Optional<Boolean>
+  }
+  class RandomFleetGenerator {
+    +{static} generate(Random) : Board
+  }
+  Ship --> ShipType
+  Ship --> Coordinate
+  Ship --> Orientation
+  Board "1" o-- "0..5" Ship
+  Board ..> ShotOutcome
+  ShotOutcome --> ShotResult
+  GameEngine --> Board : local
+  GameEngine --> GameState
+  RandomFleetGenerator ..> Board
+}
+
+package com.amiral.net {
+  class Message <<record>>
+  enum MessageType
+  class ProtocolCodec {
+    +{static} encode(Message) : String
+    +{static} decode(line) : Message
+    +{static} encodeFleet(map) : String
+  }
+  interface NetworkListener {
+    onConnected(nick, address)
+    onMessage(Message)
+    onDisconnected(reason)
+    onError(Exception)
+  }
+  class Connection {
+    +send(Message) : boolean
+    +close(reason)
+  }
+  class GameServer
+  class GameClient
+  Message --> MessageType
+  GameServer --> Connection
+  GameClient --> Connection
+  GameServer --> NetworkListener
+  GameClient --> NetworkListener
+  Connection ..> ProtocolCodec
+}
+
+package com.amiral.db {
+  class Database
+  class PlayerRepository
+  class GameRepository
+  class ShipPlacementRepository
+  class MoveRepository
+  class ChatRepository
+  class LogRepository
+  class StatsRepository
+  PlayerRepository --> Database
+  GameRepository --> Database
+  ShipPlacementRepository --> Database
+  MoveRepository --> Database
+  ChatRepository --> Database
+  LogRepository --> Database
+  StatsRepository --> Database
+}
+
+package com.amiral.controller {
+  interface AppEvent <<sealed>>
+  interface NetworkGateway
+  interface HistoryProvider
+  class SocketGateway
+  class GameController {
+    +startServer(port, nick)
+    +connect(host, port, nick)
+    +ready(Board)
+    +fire(Coordinate)
+    +sendChat(text)
+    +stop()
+  }
+  enum ConnectionState
+  SocketGateway ..|> NetworkGateway
+  GameController ..|> NetworkListener
+  GameController ..|> HistoryProvider
+  GameController --> NetworkGateway
+  GameController --> GameEngine
+  GameController --> GameRepository
+  GameController --> MoveRepository
+  GameController --> StatsRepository
+  GameController ..> AppEvent : emits
+  SocketGateway --> GameServer
+  SocketGateway --> GameClient
+}
+
+package com.amiral.ui {
+  class MainFrame
+  class BoardPanel
+  class ShipAllocationPanel
+  class ConnectionPanel
+  class ChatPanel
+  class OutputPanel
+  class StatusBar
+  class HistoryDialog
+  MainFrame *-- "2" BoardPanel
+  MainFrame *-- ShipAllocationPanel
+  MainFrame *-- ConnectionPanel
+  MainFrame *-- ChatPanel
+  MainFrame *-- OutputPanel
+  MainFrame *-- StatusBar
+  MainFrame --> GameController
+  MainFrame ..> AppEvent : handles
+  HistoryDialog --> HistoryProvider
+  ShipAllocationPanel --> BoardPanel
+}
+@enduml

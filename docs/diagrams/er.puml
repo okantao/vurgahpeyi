@@ -1,0 +1,78 @@
+@startuml er
+title BattleShip v1.0 - ER diagram (SQLite)
+hide circle
+skinparam linetype ortho
+
+entity player {
+  * id : INTEGER <<PK>>
+  --
+  * nickname : TEXT <<UNIQUE>> (1-20)
+  * created_at : TEXT
+}
+
+entity game {
+  * id : INTEGER <<PK>>
+  --
+  * mode : TEXT (SERVER|CLIENT)
+  * status : TEXT (ACTIVE|FINISHED|ABORTED)
+  * started_at : TEXT
+  ended_at : TEXT
+  winner_role : TEXT (LOCAL|REMOTE)
+  remote_ip : TEXT
+  port : INTEGER (1024-65535)
+}
+
+entity game_player {
+  * game_id : INTEGER <<PK, FK>>
+  * role : TEXT <<PK>> (LOCAL|REMOTE)
+  --
+  * player_id : INTEGER <<FK>>
+}
+
+entity ship_placement {
+  * id : INTEGER <<PK>>
+  --
+  * game_id : INTEGER <<FK>>
+  * ship_type : TEXT
+  * start_coord : TEXT
+  * orientation : TEXT (H|V)
+  UNIQUE (game_id, ship_type)
+}
+
+entity move {
+  * id : INTEGER <<PK>>
+  --
+  * game_id : INTEGER <<FK>>
+  * turn_no : INTEGER (>= 1)
+  * shooter : TEXT (LOCAL|REMOTE)
+  * coord : TEXT
+  * result : TEXT (MISS|HIT|SUNK)
+  * created_at : TEXT
+  UNIQUE (game_id, shooter, coord)
+}
+
+entity chat_message {
+  * id : INTEGER <<PK>>
+  --
+  game_id : INTEGER <<FK>>
+  * sender : TEXT (LOCAL|REMOTE)
+  * body : TEXT (1-500)
+  * sent_at : TEXT
+}
+
+entity app_log {
+  * id : INTEGER <<PK>>
+  --
+  game_id : INTEGER <<FK, SET NULL>>
+  * level : TEXT (INFO|WARN|ERROR)
+  * message : TEXT
+  * created_at : TEXT
+}
+
+player ||--o{ game_player
+game ||--|{ game_player
+game ||--o{ ship_placement
+game ||--o{ move
+game |o--o{ chat_message
+game |o--o{ app_log
+@enduml

@@ -1,0 +1,71 @@
+@startuml sequence
+title BattleShip v1.0 - Connect, place, one shot, game over
+
+actor "Server player" as SP
+participant "MainFrame\n(server)" as SUI
+participant "GameController\n(server)" as SC
+participant "GameServer" as GS
+participant "GameClient" as GC
+participant "GameController\n(client)" as CC
+participant "MainFrame\n(client)" as CUI
+actor "Client player" as CP
+database "SQLite\n(each side)" as DB
+
+== Connection ==
+SP -> SUI : Start server
+SUI -> SC : startServer(9090, nick)
+SC -> GS : start(9090)
+SC -> DB : app_log "Server is opened!"
+CP -> CUI : Connect
+CUI -> CC : connect(ip, 9090, nick)
+CC -> GC : connect() (I/O thread)
+GC -> GS : HELLO|nick
+GS -> GC : WELCOME|nick
+GS -> SC : onConnected
+GC -> CC : onConnected
+SC -> DB : game ACTIVE, player, game_player
+CC -> DB : game ACTIVE, player, game_player
+
+== Placement ==
+CP -> CUI : Ready
+CUI -> CC : ready(board)
+CC -> DB : ship_placement x5
+CC -> GC : READY|fleet
+GC -> GS : READY|fleet
+GS -> SC : onMessage(READY)
+SP -> SUI : Ready
+SUI -> SC : ready(board)
+SC -> DB : ship_placement x5
+SC -> GS : READY|fleet
+SC -> GS : START|false
+SC -> SUI : GameStarted(yourTurn = true)
+GS -> GC : READY, START
+GC -> CC : onMessage
+CC -> CUI : GameStarted(yourTurn = false)
+
+== One shot ==
+SP -> SUI : click B7 on "Your enemy"
+SUI -> SC : fire(B7)
+SC -> GS : SHOOT|B7
+GS -> GC : SHOOT|B7
+GC -> CC : onMessage(SHOOT)
+CC -> CC : engine.receiveEnemyShot(B7) = HIT
+CC -> GC : RESULT|B7|HIT|
+CC -> DB : move (REMOTE, B7, HIT)
+CC -> CUI : ShotReceived, TurnChanged(true)
+GC -> GS : RESULT|B7|HIT|
+GS -> SC : onMessage(RESULT)
+SC -> DB : move (LOCAL, B7, HIT)
+SC -> SUI : ShotFired(B7, HIT)
+
+== Game over ==
+CC -> CC : last ship cell hit, allSunk()
+CC -> GC : RESULT|..|SUNK|DESTROYER
+CC -> GC : GAME_OVER|WIN
+CC -> DB : game FINISHED, winner REMOTE
+GC -> GS : RESULT, GAME_OVER
+GS -> SC : onMessage(RESULT)
+SC -> DB : game FINISHED, winner LOCAL
+SC -> SUI : GameOver(won = true)
+CC -> CUI : GameOver(won = false)
+@enduml

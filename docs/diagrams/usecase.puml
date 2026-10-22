@@ -1,0 +1,45 @@
+@startuml usecase
+title BattleShip v1.0 - Use cases
+left to right direction
+
+actor "Player (server role)" as Server
+actor "Player (client role)" as Client
+actor "System" as System
+
+rectangle BattleShip {
+  usecase "Start / stop server" as UC1
+  usecase "Connect / disconnect" as UC2
+  usecase "Place ships\n(manual or automatic)" as UC3
+  usecase "Press Ready" as UC4
+  usecase "Fire at enemy cell" as UC5
+  usecase "Chat" as UC6
+  usecase "View history and statistics" as UC7
+  usecase "Start new game" as UC8
+  usecase "Validate shot and answer\n(MISS / HIT / SUNK / ERROR)" as UC9
+  usecase "Store game, moves, fleet,\nchat and logs" as UC10
+  usecase "Detect disconnect (heartbeat)\nand abort game" as UC11
+}
+
+Server --> UC1
+Client --> UC2
+Server --> UC3
+Client --> UC3
+Server --> UC4
+Client --> UC4
+Server --> UC5
+Client --> UC5
+Server --> UC6
+Client --> UC6
+Server --> UC7
+Client --> UC7
+Server --> UC8
+Client --> UC8
+
+UC5 ..> UC9 : <<include>>
+UC9 ..> UC10 : <<include>>
+UC4 ..> UC10 : <<include>>
+UC6 ..> UC10 : <<include>>
+System --> UC9
+System --> UC10
+System --> UC11
+@enduml
