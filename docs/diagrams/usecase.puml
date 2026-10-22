@@ -1,5 +1,5 @@
 @startuml usecase
-title BattleShip v1.0 - Use cases
+title BattleShip v1.1 - Use cases
 left to right direction
 
 actor "Player (server role)" as Server
@@ -12,6 +12,10 @@ rectangle BattleShip {
   usecase "Place ships\n(manual or automatic)" as UC3
   usecase "Press Ready" as UC4
   usecase "Fire at enemy cell" as UC5
+  usecase "Use radar (4x4, 3x)" as UC12
+  usecase "Fire torpedo (3x3, 2x)" as UC13
+  usecase "Play vs computer\n(Easy / Normal / Hard)" as UC14
+  usecase "Computer plays its turn" as UC15
   usecase "Chat" as UC6
   usecase "View history and statistics" as UC7
   usecase "Start new game" as UC8
@@ -36,6 +40,15 @@ Server --> UC8
 Client --> UC8
 
 UC5 ..> UC9 : <<include>>
+UC12 ..> UC9 : <<include>>
+UC13 ..> UC9 : <<include>>
+Server --> UC12
+Client --> UC12
+Server --> UC13
+Client --> UC13
+Server --> UC14
+UC14 ..> UC15 : <<include>>
+System --> UC15
 UC9 ..> UC10 : <<include>>
 UC4 ..> UC10 : <<include>>
 UC6 ..> UC10 : <<include>>

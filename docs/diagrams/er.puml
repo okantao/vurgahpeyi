@@ -1,5 +1,5 @@
 @startuml er
-title BattleShip v1.0 - ER diagram (SQLite)
+title BattleShip v1.1 - ER diagram (SQLite)
 hide circle
 skinparam linetype ortho
 
@@ -13,7 +13,7 @@ entity player {
 entity game {
   * id : INTEGER <<PK>>
   --
-  * mode : TEXT (SERVER|CLIENT)
+  * mode : TEXT (SERVER|CLIENT|AI)
   * status : TEXT (ACTIVE|FINISHED|ABORTED)
   * started_at : TEXT
   ended_at : TEXT
@@ -48,7 +48,21 @@ entity move {
   * coord : TEXT
   * result : TEXT (MISS|HIT|SUNK)
   * created_at : TEXT
+  * weapon : TEXT (SHOT|TORPEDO)
   UNIQUE (game_id, shooter, coord)
+}
+
+entity ability_use {
+  * id : INTEGER <<PK>>
+  --
+  * game_id : INTEGER <<FK>>
+  * turn_no : INTEGER (>= 1)
+  * user_role : TEXT (LOCAL|REMOTE)
+  * ability : TEXT (RADAR|TORPEDO)
+  * coord : TEXT
+  * found : INTEGER (>= 0)
+  * created_at : TEXT
+  TRIGGER: max 3 RADAR / 2 TORPEDO
 }
 
 entity chat_message {
@@ -73,6 +87,7 @@ player ||--o{ game_player
 game ||--|{ game_player
 game ||--o{ ship_placement
 game ||--o{ move
+game ||--o{ ability_use
 game |o--o{ chat_message
 game |o--o{ app_log
 @enduml

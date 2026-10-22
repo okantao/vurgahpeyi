@@ -763,6 +763,24 @@ Son olarak mvn -B verify çalıştır ve v1.0 tag'ini at.
 
 ---
 
+## 10b. Faz 8: Ödev İsterlerindeki Ek Özellikler (v1.1)
+
+Ödev isterleri (`docs/odev-isterleri.png`) ROADMAP'te eksik olan şu maddeleri içeriyordu; v1.1'de eklendi:
+
+| Görev | İçerik | Kabul |
+|---|---|---|
+| T-32 | `model/Weapon.java`: SHOT, RADAR (4×4, 3 hak), TORPEDO (3×3, 2 hak); alan kenarda tahtanın içine kaydırılır | `WeaponTest` |
+| T-33 | `GameEngine.use` / `receiveEnemyRadar` / `receiveEnemyTorpedo`; her kullanım sırayı geçirir; hak ve sıra kontrolü | `GameEngineWeaponsTest` |
+| T-34 | Protokol: `RADAR`, `RADAR_RESULT`, `TORPEDO`, `TORPEDO_RESULT`, hata kodu `NO_ABILITY_LEFT` | `ProtocolCodecTest`, `docs/PROTOCOL.md` |
+| T-35 | DB: `game.mode` için `'AI'`, `move.weapon`, `ability_use` tablosu ve hak tetikleyicisi; v1.0 veritabanının yükseltilmesi | `SchemaUpgradeTest` |
+| T-36 | `model/ComputerPlayer.java` (Easy / Normal / Hard), `controller/ComputerGateway.java` (aynı protokolle konuşan yerel rakip) | `ComputerPlayerTest`, `ComputerGameTest` |
+| T-37 | UI: FlatLaf koyu tema, `ShipPainter` (çizilmiş gemiler), animasyonlu `BoardPanel` (deniz, atış, torpido, Oracle Lens tarzı radar), `WeaponPanel`, `FleetStatusPanel`, `TurnBanner`, `Play vs computer` + zorluk | `UiComponentsTest`, ekran görüntüleri |
+| T-38 | 3 test case dokümanı: `docs/test-cases/TC-01…TC-03` | Dokümanlar |
+
+Varsayımlar (Bölüm 0.2'ye ek): radar ve torpido hamle sayılır ve sırayı geçirir; radar gemi hücrelerini gösterir ama vurmaz; torpido alandaki yeni hücrelerin hepsine ateş eder; bilgisayara karşı ilk hamle oyuncunundur.
+
+Not: Ödev isterlerine göre ekip en az 2 kişi olmalıdır; tek kişi yapanlardan 20 puan düşülür.
+
 ## 11. Teslim Kontrol Listesi
 
 - [ ] Ödev isterleri (Bölüm 0.1) karşılandı ve her biri için bir kanıt var (kod, test, ekran görüntüsü).
@@ -775,3 +793,5 @@ Son olarak mvn -B verify çalıştır ve v1.0 tag'ini at.
 - [ ] UML diyagramları (sınıf, ER, use case, sekans) repoda.
 - [ ] Rapor ve sunum hazır. Demo yedek videosu var.
 - [ ] `v1.0` tag'i atıldı.
+- [ ] Bilgisayara karşı oyun, radar ve torpido çalışıyor; `v1.1` tag'i atıldı.
+- [ ] 3 test case dokümanı (`docs/test-cases/`) hazır.

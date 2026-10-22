@@ -1,5 +1,5 @@
 @startuml class
-title BattleShip v1.0 - Class diagram
+title BattleShip v1.1 - Class diagram
 skinparam classAttributeIconSize 0
 hide empty members
 
@@ -50,14 +50,38 @@ package com.amiral.model {
     FINISHED
     ABORTED
   }
+  enum Weapon {
+    SHOT
+    RADAR
+    TORPEDO
+    +area(anchor) : List<Coordinate>
+    +uses() : int
+  }
   class GameEngine {
     +setLocalFleet(Board)
     +markReady(local)
-    +fireAt(Coordinate)
+    +use(Weapon, Coordinate)
     +applyOpponentShotResult(c, r, sunk)
+    +applyRadarResult(c, cells)
+    +applyTorpedoResult(c, outcomes)
     +receiveEnemyShot(Coordinate) : ShotOutcome
+    +receiveEnemyRadar(Coordinate) : List<Coordinate>
+    +receiveEnemyTorpedo(Coordinate) : List<ShotOutcome>
+    +usesLeft(Weapon) : int
     +winner() : Optional<Boolean>
   }
+  class ComputerPlayer {
+    +nextMove(GameEngine) : Move
+    +onSunk(c, type, results)
+  }
+  enum Difficulty {
+    EASY
+    NORMAL
+    HARD
+  }
+  GameEngine ..> Weapon
+  ComputerPlayer --> Difficulty
+  ComputerPlayer ..> GameEngine : reads
   class RandomFleetGenerator {
     +{static} generate(Random) : Board
   }
@@ -109,6 +133,8 @@ package com.amiral.db {
   class ChatRepository
   class LogRepository
   class StatsRepository
+  class AbilityRepository
+  AbilityRepository --> Database
   PlayerRepository --> Database
   GameRepository --> Database
   ShipPlacementRepository --> Database
@@ -123,14 +149,26 @@ package com.amiral.controller {
   interface NetworkGateway
   interface HistoryProvider
   class SocketGateway
+  class ComputerGateway
+  enum GameMode {
+    SERVER
+    CLIENT
+    AI
+  }
   class GameController {
     +startServer(port, nick)
     +connect(host, port, nick)
+    +playComputer(nick, Difficulty)
     +ready(Board)
-    +fire(Coordinate)
+    +act(Weapon, Coordinate)
     +sendChat(text)
     +stop()
   }
+  ComputerGateway ..|> NetworkGateway
+  ComputerGateway --> GameEngine : own fleet
+  ComputerGateway --> ComputerPlayer
+  GameController --> GameMode
+  GameController --> AbilityRepository
   enum ConnectionState
   SocketGateway ..|> NetworkGateway
   GameController ..|> NetworkListener
@@ -154,6 +192,15 @@ package com.amiral.ui {
   class OutputPanel
   class StatusBar
   class HistoryDialog
+  class ShipPainter
+  class WeaponPanel
+  class FleetStatusPanel
+  class TurnBanner
+  MainFrame *-- WeaponPanel
+  MainFrame *-- "2" FleetStatusPanel
+  MainFrame *-- TurnBanner
+  BoardPanel ..> ShipPainter
+  FleetStatusPanel ..> ShipPainter
   MainFrame *-- "2" BoardPanel
   MainFrame *-- ShipAllocationPanel
   MainFrame *-- ConnectionPanel
