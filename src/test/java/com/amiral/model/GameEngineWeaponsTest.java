@@ -49,7 +49,7 @@ class GameEngineWeaponsTest {
         assertEquals(9, out.size());
         assertEquals(2, out.stream().filter(o -> o.result() == ShotResult.SUNK).count());
         assertEquals(5, out.stream().filter(o -> o.result().isHit()).count());
-        assertTrue(e.isLocalTurn());
+        assertFalse(e.isLocalTurn(), "a torpedo with a hit keeps the enemy's turn");
         assertEquals(1, e.enemyUsesLeft(Weapon.TORPEDO));
     }
 
@@ -84,9 +84,6 @@ class GameEngineWeaponsTest {
         String[] cells = Fleets.standardCells();
         for (int i = 0; i < cells.length - 2; i++) {
             e.receiveEnemyShot(c(cells[i]));
-            Coordinate mine = Coordinate.of(5 + i / 10, i % 10 + 1);
-            e.fireAt(mine);
-            e.applyOpponentShotResult(mine, ShotResult.MISS, null);
         }
         e.receiveEnemyTorpedo(c("E2"));
         assertEquals(GameState.FINISHED, e.state());
@@ -126,6 +123,7 @@ class GameEngineWeaponsTest {
                 new ShotOutcome(c("C3"), ShotResult.SUNK, ShipType.DESTROYER, List.of())));
         assertEquals(2, e.enemyHits());
         assertTrue(e.enemySunk().contains(ShipType.DESTROYER));
+        assertTrue(e.isLocalTurn(), "a torpedo with a hit keeps the turn");
         assertEquals(1, e.usesLeft(Weapon.TORPEDO));
         assertEquals(RuleViolation.INVALID_COORD, violation(() -> e.applyTorpedoResult(c("B2"), List.of())));
     }
@@ -163,6 +161,15 @@ class GameEngineWeaponsTest {
         e.receiveEnemyShot(c("J10"));
         assertEquals(RuleViolation.ALREADY_SHOT, violation(() -> e.fireTorpedo(c("B2"))));
         assertEquals(1, e.usesLeft(Weapon.TORPEDO), "refused torpedo is not used up");
+    }
+
+    @Test
+    void torpedoThatMissesEverythingEndsTheTurn() {
+        GameEngine e = playing(true);
+        e.fireTorpedo(c("H8"));
+        e.applyTorpedoResult(c("H8"), Weapon.TORPEDO.area(c("H8")).stream()
+                .map(cell -> ShotOutcome.of(cell, ShotResult.MISS)).toList());
+        assertFalse(e.isLocalTurn());
     }
 
     @Test

@@ -11,8 +11,8 @@ import com.amiral.model.ShotOutcome;
 import com.amiral.model.ShotResult;
 import com.amiral.model.Weapon;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
-import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -104,7 +104,8 @@ public class MainFrame extends JFrame {
                   1  Shot     - one cell, unlimited
                   2  Radar    - shows enemy ship cells in a 4x4 area (3 per game)
                   3  Torpedo  - hits every cell of a 3x3 area (2 per game)
-                Every action ends your turn. Sink all 17 enemy ship cells to win.
+                A hit lets you move again; a miss or a radar scan ends your turn.
+                Sink all 17 enemy ship cells to win.
                 R rotates a ship while placing; right click removes it.""", "How to play",
                 JOptionPane.INFORMATION_MESSAGE));
         JMenuItem about = new JMenuItem("About");
@@ -141,16 +142,21 @@ public class MainFrame extends JFrame {
         header.add(banner, BorderLayout.CENTER);
         header.add(opponentLabel, BorderLayout.EAST);
 
-        JPanel boards = new JPanel(new GridLayout(1, 2, Theme.GAP * 2, 0));
-        boards.setBorder(BorderFactory.createEmptyBorder(Theme.GAP, Theme.GAP, 0, Theme.GAP));
-        boards.add(boardColumn("Your ships", ownBoard, ownFleet));
         JPanel enemyBottom = new JPanel();
         enemyBottom.setLayout(new BoxLayout(enemyBottom, BoxLayout.Y_AXIS));
         weapons.setAlignmentX(CENTER_ALIGNMENT);
         enemyFleet.setAlignmentX(CENTER_ALIGNMENT);
         enemyBottom.add(enemyFleet);
         enemyBottom.add(weapons);
-        boards.add(boardColumn("Your enemy", enemyBoard, enemyBottom));
+        Component[] own = {boardTitle("Your ships"), ownBoard, ownFleet};
+        Component[] enemy = {boardTitle("Your enemy"), enemyBoard, enemyBottom};
+        JPanel boards = new JPanel(new BoardsLayout(own, enemy));
+        for (Component c : own) {
+            boards.add(c);
+        }
+        for (Component c : enemy) {
+            boards.add(c);
+        }
 
         JPanel side = new JPanel();
         side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
@@ -175,15 +181,11 @@ public class MainFrame extends JFrame {
         return root;
     }
 
-    private static JPanel boardColumn(String title, BoardPanel board, JComponent bottom) {
-        JPanel p = new JPanel(new BorderLayout(0, 2));
+    private static JLabel boardTitle(String title) {
         JLabel label = new JLabel(title, SwingConstants.CENTER);
         label.setFont(Theme.TITLE_FONT);
         label.setForeground(Theme.TEXT);
-        p.add(label, BorderLayout.NORTH);
-        p.add(board, BorderLayout.CENTER);
-        p.add(bottom, BorderLayout.SOUTH);
-        return p;
+        return label;
     }
 
     private void bindKeys() {

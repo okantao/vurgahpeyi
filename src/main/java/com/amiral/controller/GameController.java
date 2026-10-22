@@ -601,7 +601,7 @@ public class GameController implements NetworkListener, HistoryProvider {
         if (engine.state() == GameState.FINISHED) {
             gateway.send(Message.gameOver(true));
             gameOver(false);
-        } else {
+        } else if (engine.isLocalTurn()) {
             emit(new AppEvent.TurnChanged(true));
             status(STATUS_YOUR_TURN);
         }
@@ -672,6 +672,10 @@ public class GameController implements NetworkListener, HistoryProvider {
     private void afterOwnAction() {
         if (engine.state() == GameState.FINISHED) {
             gameOver(true);
+        } else if (engine.isLocalTurn()) {
+            // A hit keeps the turn.
+            emit(new AppEvent.TurnChanged(true));
+            status(STATUS_YOUR_TURN);
         } else {
             status(STATUS_ENEMY_TURN);
         }

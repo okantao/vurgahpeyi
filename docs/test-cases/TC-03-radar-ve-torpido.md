@@ -12,7 +12,7 @@
 
 ## 1. Amaç
 
-Radar ve torpidonun yalnızca oyuncunun kendi sırasında kullanılabildiğini, alanların doğru boyutta olduğunu, kullanım haklarının (3 / 2) aşılamadığını, her kullanımın sırayı rakibe geçirdiğini, sonuçların iki tarafta da doğru gösterildiğini ve veritabanına yazıldığını doğrulamak.
+Radar ve torpidonun yalnızca oyuncunun kendi sırasında kullanılabildiğini, alanların doğru boyutta olduğunu, kullanım haklarının (3 / 2) aşılamadığını, radarın sırayı rakibe geçirdiğini, isabetli torpidonun ise sırayı oyuncuda bıraktığını, sonuçların iki tarafta da doğru gösterildiğini ve veritabanına yazıldığını doğrulamak.
 
 ## 2. Kurallar (tasarım kararları)
 
@@ -23,7 +23,7 @@ Radar ve torpidonun yalnızca oyuncunun kendi sırasında kullanılabildiğini, 
 | Torpido alanı | 3×3 = 9 hücre, tıklanan hücre merkez (E5 → D4…F6); kenarda içeri kaydırılır |
 | Torpido sonucu | Alandaki daha önce vurulmamış her hücreye atış; birden fazla gemi batabilir |
 | Hak | Oyuncu başına oyun başına 3 radar, 2 torpido |
-| Sıra | Radar veya torpido kullanmak hamle sayılır, sıra rakibe geçer |
+| Sıra | Radar hamle sayılır ve sıra rakibe geçer; torpido en az bir hücreyi vurursa sıra oyuncuda kalır, hiçbirini vuramazsa rakibe geçer |
 | Sınır | Haklar bitince ilgili düğme pasifleşir; rakipten gelen fazla kullanım `ERROR NO_ABILITY_LEFT` ile reddedilir |
 
 ## 3. Ön koşullar

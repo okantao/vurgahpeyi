@@ -188,6 +188,7 @@ public class ComputerGateway implements NetworkGateway {
         if (r == ShotResult.SUNK && sunk != null) {
             ai.onSunk(c, sunk, engine.myShotResults());
         }
+        scheduleMove();
     }
 
     private void onTorpedoResult(Message m) throws ProtocolException {
@@ -199,6 +200,7 @@ public class ComputerGateway implements NetworkGateway {
                 ai.onSunk(o.coordinate(), o.sunkType(), engine.myShotResults());
             }
         }
+        scheduleMove();
     }
 
     private void scheduleMove() {

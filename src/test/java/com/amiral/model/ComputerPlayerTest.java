@@ -85,7 +85,7 @@ class ComputerPlayerTest {
                     }
                 }
             }
-            if (engine.state() == GameState.PLAYING) {
+            if (engine.state() == GameState.PLAYING && !engine.isLocalTurn()) {
                 engine.receiveEnemyShot(water.remove(0));
             }
             assertTrue(turns <= 100, "game must end");
@@ -153,7 +153,6 @@ class ComputerPlayerTest {
         engine.markReady(false);
         engine.fireAt(Coordinate.parse("E5"));
         engine.applyOpponentShotResult(Coordinate.parse("E5"), ShotResult.HIT, null);
-        engine.receiveEnemyShot(Coordinate.parse("J10"));
         ComputerPlayer ai = new ComputerPlayer(ComputerPlayer.Difficulty.NORMAL, new Random(1));
         ComputerPlayer.Move m = ai.nextMove(engine);
         assertEquals(Weapon.SHOT, m.weapon());

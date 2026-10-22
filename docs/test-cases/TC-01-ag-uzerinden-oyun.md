@@ -41,8 +41,8 @@ Bir oyuncunun sunucu, diğerinin istemci olarak bağlanabildiğini; gemi yerleş
 | 5 | Üçüncü bir pencereden aynı sunucuya bağlanmayı dene | Hata: `Rejected by server: ALREADY_CONNECTED` | Otomatik testte doğrulandı (`GameLoopbackIT#secondClientIsRejected`) | PASS |
 | 6 | İki pencerede `Ready` | A: `YOUR TURN` (yeşil, düşman tahtası parlar); B: `ENEMY'S TURN` (düşman tahtası soluk) | Beklendiği gibi | PASS |
 | 7 | B sırası değilken düşman tahtasına tıklar | Hiçbir şey gönderilmez | Beklendiği gibi | PASS |
-| 8 | A düşman tahtasında bir hücreye tıklar | Mermi animasyonu; ıska ise mavi halkalar, isabet ise ateş; sıra B'ye geçer | Beklendiği gibi | PASS |
-| 9 | B aynı şekilde atış yapar | A'nın kendi tahtasında sonuç görünür, sıra A'ya geçer | Beklendiği gibi | PASS |
+| 8 | A düşman tahtasında bir hücreye tıklar | Mermi animasyonu; ıska ise mavi halkalar ve sıra B'ye geçer; isabet ise ateş ve A tekrar atış yapar | Beklendiği gibi | PASS |
+| 9 | B aynı şekilde atış yapar | A'nın kendi tahtasında sonuç görünür; B ıskalayınca sıra A'ya geçer | Beklendiği gibi | PASS |
 | 10 | B sohbete test metnini yazıp `Enter` | A'da `Amiral: Merhaba, iyi şanslar! ğüşıöç` kırmızı adla görünür | Otomatik testte doğrulandı (`GameControllerTest#chatNeedsConnectionAndValidText`) | PASS |
 | 11 | Bir taraf rakibin 17 gemi hücresinin tamamını vurur | Kazanan: `VICTORY!` ve `Victory! You won!`; kaybeden: `DEFEAT` | Otomatik testte doğrulandı (`SocketGameIT#clientWinsOverTcp`, gerçek TCP) | PASS |
 | 12 | `Game → History` (Ctrl+H) | Son oyun `SERVER` / `CLIENT` modunda, sonuç `WIN`/`LOSS`; çift tıkla hamleler listelenir | Geçmiş penceresi doğrulandı; hamle listesi otomatik testte | PASS |

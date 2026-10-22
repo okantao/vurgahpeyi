@@ -64,7 +64,7 @@ Both sides own their board, so each side validates the shots it receives:
 2. It must be the sender's turn, otherwise `NOT_YOUR_TURN`.
 3. The cell must parse (`A–J` + `1–10`), otherwise `INVALID_COORD`.
 4. The cell must be new, otherwise `ALREADY_SHOT`.
-5. Otherwise the board answers `RESULT` and the turn passes to the receiver (the turn alternates after every shot, hit or miss).
+5. Otherwise the board answers `RESULT` On a `MISS` the turn passes to the receiver; on a `HIT` or `SUNK` the shooter keeps the turn and shoots again. A torpedo with at least one hit also keeps the turn; a radar scan always passes it.
 
 When the last ship cell is hit, the owner of the board sends `RESULT|...|SUNK|<type>` followed by `GAME_OVER|WIN`. The shooter also detects the win after its 17th hit. Both sides store the game as `FINISHED`.
 

@@ -76,7 +76,7 @@ Düşman tahtasının altında **silah çubuğu** vardır (bkz. Bölüm 7).
 1. İki taraf da `Ready` deyince oyun başlar. **Sunucu (bilgisayara karşı ise siz) ilk hamleyi yapar.**
 2. Sıra sizdeyken bant `YOUR TURN` gösterir, düşman tahtasının çerçevesi yeşil parlar; bir silah seçip hücreye tıklayın.
 3. Sıra rakipteyken düşman tahtası kararır ve tıklamalar yok sayılır.
-4. Her hamle (atış, radar, torpido) sırayı karşı tarafa geçirir (isabet olsa da).
+4. İsabet eden oyuncu ıskalayana kadar atışa devam eder. Iska ve radar sırayı karşı tarafa geçirir; torpido en az bir hücreyi vurursa sıra sizde kalır.
 5. 17 gemi hücresinin tamamını ilk vuran kazanır: `VICTORY!` / `DEFEAT`.
 
 ## 7. Silahlar: atış, radar, torpido

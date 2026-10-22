@@ -68,13 +68,18 @@ class GameEngineTest {
     }
 
     @Test
-    void turnAlternatesEveryShot() {
+    void hitKeepsTheTurnAndMissPassesIt() {
         GameEngine e = playing(true);
         e.fireAt(c("A1"));
         assertFalse(e.isLocalTurn());
         e.applyOpponentShotResult(c("A1"), ShotResult.HIT, null);
-        assertFalse(e.isLocalTurn(), "turn passes even on a hit");
+        assertTrue(e.isLocalTurn(), "a hit keeps the turn");
+        e.fireAt(c("A2"));
+        e.applyOpponentShotResult(c("A2"), ShotResult.MISS, null);
+        assertFalse(e.isLocalTurn(), "a miss passes the turn");
         assertEquals(ShotResult.HIT, e.receiveEnemyShot(c("A1")).result());
+        assertFalse(e.isLocalTurn(), "the opponent keeps the turn after a hit");
+        assertEquals(ShotResult.MISS, e.receiveEnemyShot(c("J10")).result());
         assertTrue(e.isLocalTurn());
         assertEquals(1, e.enemyHits());
         assertEquals(ShotResult.HIT, e.myShotResults().get(c("A1")));
@@ -128,16 +133,11 @@ class GameEngineTest {
     void localWinsAfterSeventeenHits() {
         GameEngine e = playing(true);
         String[] targets = Fleets.standardCells();
-        String[] enemyShots = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10",
-            "G1", "G2", "G3", "G4", "G5", "G6"};
         for (int i = 0; i < targets.length; i++) {
             assertTrue(e.winner().isEmpty());
             e.fireAt(c(targets[i]));
             ShotResult r = i == targets.length - 1 ? ShotResult.SUNK : ShotResult.HIT;
             e.applyOpponentShotResult(c(targets[i]), r, r == ShotResult.SUNK ? ShipType.DESTROYER : null);
-            if (i < enemyShots.length) {
-                e.receiveEnemyShot(c(enemyShots[i]));
-            }
         }
         assertEquals(GameState.FINISHED, e.state());
         assertTrue(e.winner().orElseThrow());
@@ -145,12 +145,7 @@ class GameEngineTest {
         assertFalse(e.isLocalTurn());
     }
 
-    /** Distinct cells in rows F-J, used as our (missing) shots. */
-    private static Coordinate spare(int i) {
-        return Coordinate.of(5 + i / 10, i % 10 + 1);
-    }
-
-    /** Client engine whose fleet is sunk by the opponent while all our shots miss. */
+    /** Client engine whose fleet is sunk by the opponent in one run of hits. */
     private static GameEngine lostGame() {
         GameEngine e = playing(false);
         String[] cells = Fleets.standardCells();
@@ -159,10 +154,9 @@ class GameEngineTest {
             if (i == cells.length - 1) {
                 assertEquals(ShotResult.SUNK, o.result());
                 assertEquals(ShipType.DESTROYER, o.sunkType());
-                break;
+            } else {
+                assertFalse(e.isLocalTurn(), "the opponent keeps shooting after a hit");
             }
-            e.fireAt(spare(i));
-            e.applyOpponentShotResult(spare(i), ShotResult.MISS, null);
         }
         return e;
     }

@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Game rules from one player's point of view: own board, actions against the enemy, turn order and winner.
  * The enemy board is unknown, so the results of our actions are applied when the opponent reports them.
- * Every action (shot, radar, torpedo) ends the turn.
+ * A hit (shot or torpedo) keeps the turn; a miss or a radar scan passes it to the opponent.
  */
 public class GameEngine {
 
@@ -113,6 +113,7 @@ public class GameEngine {
         }
         clearPending();
         record(c, r, sunk);
+        localTurn = r.isHit();
         checkWin();
     }
 
@@ -145,6 +146,7 @@ public class GameEngine {
                 record(o.coordinate(), o.result(), o.sunkType());
             }
         }
+        localTurn = anyHit(outcomes);
         checkWin();
     }
 
@@ -175,14 +177,14 @@ public class GameEngine {
 
     // ---------------------------------------------------------------- enemy actions on our board
 
-    /** Applies an enemy shot to our board. A repeated shot does not change the turn. */
+    /** Applies an enemy shot to our board. A hit or a repeated shot does not change the turn. */
     public ShotOutcome receiveEnemyShot(Coordinate c) {
         requireEnemyTurn();
         ShotOutcome outcome = local.receiveShot(c);
         if (outcome.result() == ShotResult.ALREADY_SHOT) {
             return outcome;
         }
-        endEnemyTurn();
+        endEnemyTurn(outcome.result().isHit());
         return outcome;
     }
 
@@ -197,7 +199,7 @@ public class GameEngine {
             }
         }
         enemyUses.merge(Weapon.RADAR, 1, Integer::sum);
-        endEnemyTurn();
+        endEnemyTurn(false);
         return found;
     }
 
@@ -214,7 +216,7 @@ public class GameEngine {
             outcomes.add(local.receiveShot(cell));
         }
         enemyUses.merge(Weapon.TORPEDO, 1, Integer::sum);
-        endEnemyTurn();
+        endEnemyTurn(anyHit(outcomes));
         return outcomes;
     }
 
@@ -231,8 +233,9 @@ public class GameEngine {
         }
     }
 
-    private void endEnemyTurn() {
-        localTurn = true;
+    /** The opponent keeps the turn after a hit. */
+    private void endEnemyTurn(boolean enemyHit) {
+        localTurn = !enemyHit;
         if (local.allSunk()) {
             finish(false);
         }
@@ -263,6 +266,10 @@ public class GameEngine {
         if (pendingWeapon != weapon || !c.equals(pendingTarget)) {
             throw new GameRuleException(RuleViolation.INVALID_COORD, "No pending " + weapon + " at " + c);
         }
+    }
+
+    private static boolean anyHit(List<ShotOutcome> outcomes) {
+        return outcomes.stream().anyMatch(o -> o.result().isHit());
     }
 
     private void clearPending() {

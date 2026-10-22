@@ -81,12 +81,12 @@ class SocketGameIT {
         client.ready(Fleets.standard());
         waitFor("start", () -> server.gameState() == GameState.PLAYING && client.gameState() == GameState.PLAYING);
 
+        // The server misses once; then every client shot hits, so the client keeps the turn to the end.
+        server.fire(Coordinate.parse("J10"));
+        waitFor("server shot", () -> countShots(serverEvents) == 1);
         String[] targets = Fleets.standardCells();
         for (int i = 0; i < targets.length; i++) {
-            Coordinate miss = Coordinate.of(5 + i / 10, i % 10 + 1);
             int shots = i;
-            server.fire(miss);
-            waitFor("server shot " + i, () -> countShots(serverEvents) == shots + 1);
             client.fire(Coordinate.parse(targets[i]));
             waitFor("client shot " + i, () -> countShots(clientEvents) == shots + 1);
         }

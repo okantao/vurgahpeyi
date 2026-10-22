@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JTextPane;
+import javax.swing.SwingConstants;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.AttributeSet;
 import javax.swing.text.BadLocationException;
@@ -19,7 +20,10 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 
-/** "Chat History" box: coloured read-only history plus an input line (Enter or Send). */
+/**
+ * Chat box that starts collapsed to a header button; a click opens the coloured read-only history and the
+ * input line (Enter or Send). While it is closed the header counts the unread messages.
+ */
 public class ChatPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
@@ -28,16 +32,28 @@ public class ChatPanel extends JPanel {
     private final JTextPane history = new JTextPane();
     private final JTextField input = new JTextField();
     private final JButton send = new JButton("Send");
+    private final JButton header = new JButton();
+    private final JPanel body = new JPanel(new BorderLayout(Theme.GAP / 2, Theme.GAP / 2));
+    private int unread;
     private transient Consumer<String> onSend = s -> { };
 
     public ChatPanel() {
-        super(new BorderLayout(Theme.GAP / 2, Theme.GAP / 2));
-        setBorder(BorderFactory.createTitledBorder("Chat History"));
+        super(new BorderLayout(0, Theme.GAP / 2));
+        header.setFont(Theme.LABEL_FONT);
+        header.setForeground(Theme.ACCENT);
+        header.setHorizontalAlignment(SwingConstants.LEFT);
+        header.setFocusable(false);
+        header.setToolTipText("Show or hide the chat");
+        header.addActionListener(e -> setExpanded(!isExpanded()));
+        add(header, BorderLayout.NORTH);
+
+        body.setBorder(BorderFactory.createTitledBorder("Chat History"));
         history.setEditable(false);
+        history.setBackground(Theme.PANEL);
         ((DefaultCaret) history.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         JScrollPane scroll = new JScrollPane(history);
         scroll.setPreferredSize(new Dimension(200, 120));
-        add(scroll, BorderLayout.CENTER);
+        body.add(scroll, BorderLayout.CENTER);
 
         ((AbstractDocument) input.getDocument()).setDocumentFilter(new LengthFilter(MAX_LENGTH));
         input.setToolTipText("Message (max " + MAX_LENGTH + " characters), Enter to send");
@@ -47,8 +63,33 @@ public class ChatPanel extends JPanel {
         JPanel bottom = new JPanel(new BorderLayout(Theme.GAP / 2, 0));
         bottom.add(input, BorderLayout.CENTER);
         bottom.add(send, BorderLayout.EAST);
-        add(bottom, BorderLayout.SOUTH);
+        body.add(bottom, BorderLayout.SOUTH);
+        add(body, BorderLayout.CENTER);
         setChatEnabled(false);
+        setExpanded(false);
+    }
+
+    public boolean isExpanded() {
+        return body.isVisible();
+    }
+
+    /** Opens or closes the chat; opening marks every message as read. */
+    public void setExpanded(boolean expanded) {
+        body.setVisible(expanded);
+        if (expanded) {
+            unread = 0;
+        }
+        updateHeader();
+        revalidate();
+        repaint();
+        if (expanded && input.isEnabled()) {
+            input.requestFocusInWindow();
+        }
+    }
+
+    private void updateHeader() {
+        String title = unread > 0 ? "Chat (" + unread + " new)" : "Chat";
+        header.setText((isExpanded() ? "▾  " : "▸  ") + title);
     }
 
     private void submit() {
@@ -76,6 +117,14 @@ public class ChatPanel extends JPanel {
             throw new IllegalStateException(e);
         }
         history.setCaretPosition(doc.getLength());
+        if (!isExpanded() && !mine) {
+            unread++;
+            updateHeader();
+        }
+    }
+
+    public int unreadCount() {
+        return unread;
     }
 
     public void clearHistory() {

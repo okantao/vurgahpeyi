@@ -26,6 +26,7 @@ public class OutputPanel extends JPanel {
         setBorder(BorderFactory.createTitledBorder("Output"));
         area.setEditable(false);
         area.setFont(Theme.MONO_FONT);
+        area.setBackground(Theme.PANEL);
         ((DefaultCaret) area.getCaret()).setUpdatePolicy(DefaultCaret.ALWAYS_UPDATE);
         add(new JScrollPane(area), BorderLayout.CENTER);
         setPreferredSize(new Dimension(800, Theme.OUTPUT_HEIGHT));

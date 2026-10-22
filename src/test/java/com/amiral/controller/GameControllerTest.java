@@ -151,10 +151,12 @@ class GameControllerTest {
         connectAndReady();
         client.sendChat("İyi şanslar!");
         net.pump();
+        // Every shot hits, so the server keeps the turn and the client's shots are ignored.
         for (int i = 0; i < CLIENT_CELLS.length; i++) {
             server.fire(c(CLIENT_CELLS[i]));
             net.pump();
             if (i < CLIENT_CELLS.length - 1) {
+                assertEquals(GameController.STATUS_YOUR_TURN, lastStatus(serverEvents));
                 client.fire(miss(i));
                 net.pump();
             }
@@ -178,8 +180,8 @@ class GameControllerTest {
         assertEquals("LOCAL", sg.winnerRole());
         GameRepository.GameRecord cg = new GameRepository(clientDb).findById(client.currentGameId()).orElseThrow();
         assertEquals("REMOTE", cg.winnerRole());
-        assertEquals(33, new MoveRepository(serverDb).findByGame(server.currentGameId()).size());
-        assertEquals(33, new MoveRepository(clientDb).findByGame(client.currentGameId()).size());
+        assertEquals(17, new MoveRepository(serverDb).findByGame(server.currentGameId()).size());
+        assertEquals(17, new MoveRepository(clientDb).findByGame(client.currentGameId()).size());
         assertEquals("İyi şanslar!", new ChatRepository(serverDb).findByGame(server.currentGameId()).get(0).body());
 
         HistoryProvider.Stats stats = server.stats();
@@ -187,7 +189,7 @@ class GameControllerTest {
         assertEquals(100.0, stats.winRate());
         assertEquals("WIN", server.games(10).get(0).result());
         assertEquals("TestClient", server.games(10).get(0).opponent());
-        assertEquals(33, server.moves(server.currentGameId()).size());
+        assertEquals(17, server.moves(server.currentGameId()).size());
         assertEquals(1, client.stats().losses());
     }
 
@@ -219,11 +221,33 @@ class GameControllerTest {
     }
 
     @Test
+    void hitKeepsTheTurnAndMissPassesIt() {
+        connectAndReady();
+        server.fire(c("F1"));
+        net.pump();
+        assertEquals(GameController.STATUS_YOUR_TURN, lastStatus(serverEvents), "hit: shoot again");
+        assertEquals(GameController.STATUS_ENEMY_TURN, lastStatus(clientEvents));
+
+        server.fire(c("A10"));
+        net.pump();
+        assertEquals(GameController.STATUS_ENEMY_TURN, lastStatus(serverEvents));
+        assertEquals(GameController.STATUS_YOUR_TURN, lastStatus(clientEvents));
+
+        client.fire(c("A1"));
+        net.pump();
+        assertEquals(GameController.STATUS_YOUR_TURN, lastStatus(clientEvents), "client hit A1");
+        client.fire(c("J10"));
+        net.pump();
+        assertEquals(GameController.STATUS_YOUR_TURN, lastStatus(serverEvents));
+        assertEquals(GameController.STATUS_ENEMY_TURN, lastStatus(clientEvents));
+    }
+
+    @Test
     void repeatedShotIsRefusedAndTurnStays() {
         connectAndReady();
         server.fire(c("A10"));
         net.pump();
-        client.fire(c("A1"));
+        client.fire(c("J10"));
         net.pump();
         // A cheating server shoots A10 again: the client refuses, the server keeps its turn.
         server.onMessage(Message.of(MessageType.ERROR, "ALREADY_SHOT", "x"));

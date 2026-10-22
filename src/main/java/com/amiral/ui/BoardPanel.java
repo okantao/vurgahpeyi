@@ -81,8 +81,8 @@ public class BoardPanel extends JPanel {
 
     public BoardPanel() {
         clear();
-        setOpaque(true);
-        setBackground(Theme.BACKGROUND);
+        // No own background: the coordinates sit on the window colour.
+        setOpaque(false);
         MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {

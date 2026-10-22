@@ -84,7 +84,7 @@ Her taraf kendi tahtasının sahibidir: `SHOOT` alan taraf sırayı, koordinatı
 
 ## 7. Oyun motoru
 
-`GameEngine` tek bir oyuncunun bakış açısını tutar: kendi tahtası, rakibe yapılan atışlar ve sonuçları, sıra ve durum (`SETUP → WAITING → PLAYING → FINISHED`, herhangi bir durumdan `ABORTED`). Rakip tahtası bilinmediği için kendi atışımız önce "bekleyen atış" olarak kaydedilir; sonuç `RESULT` ile gelince uygulanır. Rakip atışı reddederse (`ERROR`) bekleyen atış geri alınır ve sıra bizde kalır. Sıra her atışta karşı tarafa geçer; 17 isabet oyunu bitirir. Sunucu ilk hamleyi yapar.
+`GameEngine` tek bir oyuncunun bakış açısını tutar: kendi tahtası, rakibe yapılan atışlar ve sonuçları, sıra ve durum (`SETUP → WAITING → PLAYING → FINISHED`, herhangi bir durumdan `ABORTED`). Rakip tahtası bilinmediği için kendi atışımız önce "bekleyen atış" olarak kaydedilir; sonuç `RESULT` ile gelince uygulanır. Rakip atışı reddederse (`ERROR`) bekleyen atış geri alınır ve sıra bizde kalır. İsabet eden oyuncu (atış veya en az bir isabetli torpido) ıskalayana kadar oynamaya devam eder; ıska veya radar sırayı karşı tarafa geçirir. 17 isabet oyunu bitirir. Sunucu ilk hamleyi yapar.
 
 ### 7.1 Bilgisayar rakip
 
