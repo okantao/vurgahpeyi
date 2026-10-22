@@ -2,6 +2,7 @@ package com.amiral.controller;
 
 import com.amiral.model.Coordinate;
 import com.amiral.model.ShipType;
+import com.amiral.model.ShotOutcome;
 import com.amiral.model.ShotResult;
 import java.util.List;
 
@@ -43,6 +44,21 @@ public sealed interface AppEvent {
 
     /** The enemy's shot on our board. */
     record ShotReceived(Coordinate coordinate, ShotResult result, ShipType sunkType, List<Coordinate> sunkCells)
+            implements AppEvent {
+    }
+
+    /** A radar scan. {@code mine}: we scanned the enemy board; otherwise the enemy scanned ours. */
+    record RadarScan(Coordinate anchor, List<Coordinate> area, List<Coordinate> shipCells, boolean mine)
+            implements AppEvent {
+    }
+
+    /** A torpedo strike with one outcome per newly shot cell (SUNK outcomes carry the ship cells). */
+    record TorpedoStrike(Coordinate anchor, List<Coordinate> area, List<ShotOutcome> outcomes, boolean mine)
+            implements AppEvent {
+    }
+
+    /** Radars and torpedoes left for both players. */
+    record AbilitiesChanged(int myRadars, int myTorpedoes, int enemyRadars, int enemyTorpedoes)
             implements AppEvent {
     }
 

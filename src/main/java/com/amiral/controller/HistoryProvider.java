@@ -12,7 +12,8 @@ public interface HistoryProvider {
             String opponent) {
     }
 
-    record MoveRow(int turn, String shooter, String coord, String result, String time) {
+    /** {@code weapon} is SHOT, TORPEDO or RADAR. */
+    record MoveRow(int turn, String shooter, String weapon, String coord, String result, String time) {
     }
 
     Stats stats();

@@ -1,5 +1,6 @@
 package com.amiral.controller;
 
+import com.amiral.db.AbilityRepository;
 import com.amiral.db.ChatRepository;
 import com.amiral.db.Database;
 import com.amiral.db.GameRepository;
@@ -9,14 +10,17 @@ import com.amiral.db.PlayerRepository;
 import com.amiral.db.ShipPlacementRepository;
 import com.amiral.db.StatsRepository;
 import com.amiral.model.Board;
+import com.amiral.model.ComputerPlayer;
 import com.amiral.model.Coordinate;
 import com.amiral.model.GameEngine;
 import com.amiral.model.GameRuleException;
 import com.amiral.model.GameState;
 import com.amiral.model.RuleViolation;
+import com.amiral.model.Ship;
 import com.amiral.model.ShipType;
 import com.amiral.model.ShotOutcome;
 import com.amiral.model.ShotResult;
+import com.amiral.model.Weapon;
 import com.amiral.net.Message;
 import com.amiral.net.NetworkListener;
 import com.amiral.net.ProtocolCodec;
@@ -31,16 +35,19 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.logging.Logger;
 
 /**
- * Bridge between the game engine, the network, the database and the UI.
+ * Bridge between the game engine, the network (or the computer opponent), the database and the UI.
  * UI actions and network callbacks are serialised with one lock; events reach the UI through {@code uiExecutor}.
  */
 public class GameController implements NetworkListener, HistoryProvider {
@@ -56,8 +63,9 @@ public class GameController implements NetworkListener, HistoryProvider {
 
     static final DateTimeFormatter DB_TIME = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     static final DateTimeFormatter UI_TIME = DateTimeFormatter.ofPattern("MM/dd/yyyy HH:mm:ss");
-    private static final Set<RuleViolation> SHOT_ERRORS = EnumSet.of(RuleViolation.NOT_YOUR_TURN,
-            RuleViolation.ALREADY_SHOT, RuleViolation.INVALID_COORD, RuleViolation.GAME_NOT_STARTED);
+    private static final Set<RuleViolation> ACTION_ERRORS = EnumSet.of(RuleViolation.NOT_YOUR_TURN,
+            RuleViolation.ALREADY_SHOT, RuleViolation.INVALID_COORD, RuleViolation.GAME_NOT_STARTED,
+            RuleViolation.NO_ABILITY_LEFT);
     private static final Logger LOG = AppLogger.get(GameController.class);
 
     @FunctionalInterface
@@ -66,19 +74,23 @@ public class GameController implements NetworkListener, HistoryProvider {
     }
 
     private final Object lock = new Object();
-    private final NetworkGateway gateway;
+    private final NetworkGateway networkGateway;
     private final Executor uiExecutor;
     private final Executor ioExecutor;
     private final PlayerRepository players;
     private final GameRepository games;
     private final ShipPlacementRepository placements;
     private final MoveRepository moves;
+    private final AbilityRepository abilities;
     private final ChatRepository chats;
     private final LogRepository logs;
     private final StatsRepository stats;
     private volatile Consumer<AppEvent> view = e -> { };
+    private Function<ComputerPlayer.Difficulty, NetworkGateway> computerFactory = ComputerGateway::new;
 
+    private NetworkGateway gateway;
     private ConnectionState state = ConnectionState.IDLE;
+    private GameMode mode = GameMode.SERVER;
     private boolean serverMode = true;
     private String localNick = "Player";
     private String remoteNick = "Enemy";
@@ -92,6 +104,7 @@ public class GameController implements NetworkListener, HistoryProvider {
     private boolean closingLocally;
 
     public GameController(Database db, NetworkGateway gateway, Executor uiExecutor, Executor ioExecutor) {
+        this.networkGateway = gateway;
         this.gateway = gateway;
         this.uiExecutor = uiExecutor;
         this.ioExecutor = ioExecutor;
@@ -99,6 +112,7 @@ public class GameController implements NetworkListener, HistoryProvider {
         this.games = new GameRepository(db);
         this.placements = new ShipPlacementRepository(db);
         this.moves = new MoveRepository(db);
+        this.abilities = new AbilityRepository(db);
         this.chats = new ChatRepository(db);
         this.logs = new LogRepository(db);
         this.stats = new StatsRepository(db);
@@ -106,6 +120,13 @@ public class GameController implements NetworkListener, HistoryProvider {
 
     public void setView(Consumer<AppEvent> view) {
         this.view = view;
+    }
+
+    /** Replaces how the computer opponent is created (tests use a deterministic one). */
+    public void setComputerFactory(Function<ComputerPlayer.Difficulty, NetworkGateway> factory) {
+        synchronized (lock) {
+            this.computerFactory = factory;
+        }
     }
 
     // ---------------------------------------------------------------- UI actions
@@ -116,6 +137,8 @@ public class GameController implements NetworkListener, HistoryProvider {
             if (state != ConnectionState.IDLE) {
                 return;
             }
+            gateway = networkGateway;
+            mode = GameMode.SERVER;
             serverMode = true;
             localNick = nickname;
             port = listenPort;
@@ -142,6 +165,8 @@ public class GameController implements NetworkListener, HistoryProvider {
             if (state != ConnectionState.IDLE) {
                 return;
             }
+            gateway = networkGateway;
+            mode = GameMode.CLIENT;
             serverMode = false;
             localNick = nickname;
             port = serverPort;
@@ -150,9 +175,10 @@ public class GameController implements NetworkListener, HistoryProvider {
             log("Connecting to " + host + ":" + serverPort + "...");
             status("Connecting...");
         }
+        NetworkGateway g = networkGateway;
         ioExecutor.execute(() -> {
             try {
-                gateway.connect(host, serverPort, nickname, this);
+                g.connect(host, serverPort, nickname, this);
             } catch (IOException | RuntimeException e) {
                 synchronized (lock) {
                     setState(ConnectionState.IDLE);
@@ -163,7 +189,29 @@ public class GameController implements NetworkListener, HistoryProvider {
         });
     }
 
-    /** "Stop server" or "Disconnect". A running game is aborted. */
+    /** Starts a game against the computer. We move first, like a server. */
+    public void playComputer(String nickname, ComputerPlayer.Difficulty difficulty) {
+        synchronized (lock) {
+            if (state != ConnectionState.IDLE) {
+                return;
+            }
+            mode = GameMode.AI;
+            serverMode = true;
+            localNick = nickname;
+            port = 0;
+            closingLocally = false;
+            gateway = computerFactory.apply(difficulty);
+            log("Starting a game against the computer (" + difficulty.label() + ").");
+            try {
+                gateway.connect("computer", 0, nickname, this);
+            } catch (IOException | RuntimeException e) {
+                gateway = networkGateway;
+                error("Cannot start the computer player: " + e.getMessage(), true);
+            }
+        }
+    }
+
+    /** "Stop server", "Disconnect" or "End game". A running game is aborted. */
     public void stop() {
         synchronized (lock) {
             if (state == ConnectionState.IDLE) {
@@ -176,7 +224,11 @@ public class GameController implements NetworkListener, HistoryProvider {
             gateway.close();
             engine = null;
             setState(ConnectionState.IDLE);
-            log(serverMode ? "Server is closed." : "Disconnected from server.");
+            log(switch (mode) {
+                case SERVER -> "Server is closed.";
+                case CLIENT -> "Disconnected from server.";
+                case AI -> "Game against the computer closed.";
+            });
             status(STATUS_IDLE);
         }
     }
@@ -213,8 +265,13 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
     }
 
-    /** Our shot at the enemy board. Ignored when it is not our turn. */
+    /** A normal shot at the enemy board. Ignored when it is not our turn. */
     public void fire(Coordinate c) {
+        act(Weapon.SHOT, c);
+    }
+
+    /** Uses a weapon on our turn: shot, radar (4x4) or torpedo (3x3). */
+    public void act(Weapon weapon, Coordinate c) {
         synchronized (lock) {
             if (engine == null || engine.state() != GameState.PLAYING) {
                 return;
@@ -223,12 +280,25 @@ public class GameController implements NetworkListener, HistoryProvider {
                 log("It is not your turn.");
                 return;
             }
-            if (engine.hasShotAt(c)) {
+            if (weapon == Weapon.SHOT && engine.hasShotAt(c)) {
                 log("You already shot at " + c + ".");
                 return;
             }
-            engine.fireAt(c);
-            gateway.send(Message.shoot(c.toString()));
+            try {
+                engine.use(weapon, c);
+            } catch (GameRuleException e) {
+                log(e.getMessage() + ".");
+                emit(new AppEvent.Error(e.getMessage(), false));
+                return;
+            }
+            gateway.send(switch (weapon) {
+                case SHOT -> Message.shoot(c.toString());
+                case RADAR -> Message.radar(c.toString());
+                case TORPEDO -> Message.torpedo(c.toString());
+            });
+            if (weapon != Weapon.SHOT) {
+                emitAbilities();
+            }
             emit(new AppEvent.TurnChanged(false));
             status(STATUS_ENEMY_TURN);
         }
@@ -294,8 +364,14 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
     }
 
+    public GameMode mode() {
+        synchronized (lock) {
+            return mode;
+        }
+    }
+
     public String localIp() {
-        return gateway.localIp();
+        return networkGateway.localIp();
     }
 
     /** Current game id, or null before the first opponent connected. */
@@ -311,21 +387,28 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
     }
 
+    /** Uses left for our weapon (Integer.MAX_VALUE for shots, 0 without a game). */
+    public int usesLeft(Weapon w) {
+        synchronized (lock) {
+            return engine == null ? 0 : engine.usesLeft(w);
+        }
+    }
+
     // ---------------------------------------------------------------- network callbacks
 
     @Override
     public void onConnected(String remoteNickname, String address) {
         synchronized (lock) {
             remoteNick = remoteNickname == null || remoteNickname.isBlank() ? "Enemy" : remoteNickname;
-            remoteAddress = address;
+            remoteAddress = mode == GameMode.AI ? null : address;
             opponentQuit = false;
             closingLocally = false;
             startRound();
             setState(ConnectionState.CONNECTED);
-            if (serverMode) {
-                log(remoteNick + " wants to join (" + address + ")");
-            } else {
-                log("Connected to " + remoteNick + " at " + address + ":" + port);
+            switch (mode) {
+                case SERVER -> log(remoteNick + " wants to join (" + address + ")");
+                case CLIENT -> log("Connected to " + remoteNick + " at " + address + ":" + port);
+                case AI -> log("You are playing against " + remoteNick + ".");
             }
             emit(new AppEvent.ClientConnected(remoteNick, address));
             log("Place your ships and press Ready.");
@@ -342,6 +425,10 @@ public class GameController implements NetworkListener, HistoryProvider {
                     case START -> log("Server started the game.");
                     case SHOOT -> remoteShoot(m.field(0));
                     case RESULT -> remoteResult(m.field(0), m.field(1), m.field(2));
+                    case RADAR -> remoteRadar(m.field(0));
+                    case RADAR_RESULT -> remoteRadarResult(m.field(0), m.field(1));
+                    case TORPEDO -> remoteTorpedo(m.field(0));
+                    case TORPEDO_RESULT -> remoteTorpedoResult(m.field(0), m.field(1));
                     case CHAT -> remoteChat(m.field(1));
                     case GAME_OVER -> remoteGameOver(m.field(0));
                     case QUIT -> {
@@ -398,7 +485,7 @@ public class GameController implements NetworkListener, HistoryProvider {
         if (engine.state() != GameState.SETUP && engine.state() != GameState.WAITING) {
             return;
         }
-        Map<ShipType, com.amiral.model.Ship> fleet = ProtocolCodec.decodeFleet(fleetText);
+        Map<ShipType, Ship> fleet = ProtocolCodec.decodeFleet(fleetText);
         Board board;
         try {
             board = Board.of(fleet);
@@ -425,20 +512,28 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
         boolean yourTurn = engine.isLocalTurn();
         emit(new AppEvent.GameStarted(yourTurn));
+        emitAbilities();
         log("Game started! " + (yourTurn ? "Your turn." : remoteNick + " starts."));
         status(yourTurn ? STATUS_YOUR_TURN : STATUS_ENEMY_TURN);
     }
 
-    private void remoteShoot(String coordText) {
+    /** Parses a target cell sent by the opponent and checks that the game is running; null if refused. */
+    private Coordinate incomingTarget(String coordText) {
         if (engine == null || engine.state() != GameState.PLAYING) {
             sendError(RuleViolation.GAME_NOT_STARTED, "The game is not running");
-            return;
+            return null;
         }
-        Coordinate c;
         try {
-            c = Coordinate.parse(coordText);
+            return Coordinate.parse(coordText);
         } catch (IllegalArgumentException e) {
             sendError(RuleViolation.INVALID_COORD, "Invalid cell: " + coordText);
+            return null;
+        }
+    }
+
+    private void remoteShoot(String coordText) {
+        Coordinate c = incomingTarget(coordText);
+        if (c == null) {
             return;
         }
         ShotOutcome outcome;
@@ -454,9 +549,55 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
         gateway.send(Message.result(c.toString(), outcome.result().name(),
                 outcome.sunkType() == null ? null : outcome.sunkType().name()));
-        saveMove(GameRepository.REMOTE, c, outcome.result());
+        saveMove(nextTurn(), GameRepository.REMOTE, c, outcome.result(), Weapon.SHOT);
         emit(new AppEvent.ShotReceived(c, outcome.result(), outcome.sunkType(), outcome.sunkCells()));
         log(remoteNick + " shot at " + c + ": " + describe(outcome.result(), outcome.sunkType()));
+        afterEnemyAction();
+    }
+
+    private void remoteRadar(String coordText) {
+        Coordinate c = incomingTarget(coordText);
+        if (c == null) {
+            return;
+        }
+        List<Coordinate> found;
+        try {
+            found = engine.receiveEnemyRadar(c);
+        } catch (GameRuleException e) {
+            sendError(e.violation(), e.getMessage());
+            return;
+        }
+        gateway.send(Message.radarResult(c.toString(), ProtocolCodec.encodeCells(found)));
+        saveAbility(nextTurn(), GameRepository.REMOTE, Weapon.RADAR, c, found.size());
+        emit(new AppEvent.RadarScan(c, Weapon.RADAR.area(c), found, false));
+        emitAbilities();
+        log(remoteNick + " used a radar around " + c + " and found " + found.size() + " of your ship cells.");
+        afterEnemyAction();
+    }
+
+    private void remoteTorpedo(String coordText) {
+        Coordinate c = incomingTarget(coordText);
+        if (c == null) {
+            return;
+        }
+        List<ShotOutcome> outcomes;
+        try {
+            outcomes = engine.receiveEnemyTorpedo(c);
+        } catch (GameRuleException e) {
+            sendError(e.violation(), e.getMessage());
+            return;
+        }
+        gateway.send(Message.torpedoResult(c.toString(), ProtocolCodec.encodeOutcomes(outcomes)));
+        int turn = nextTurn();
+        outcomes.forEach(o -> saveMove(turn, GameRepository.REMOTE, o.coordinate(), o.result(), Weapon.TORPEDO));
+        saveAbility(turn, GameRepository.REMOTE, Weapon.TORPEDO, c, hits(outcomes));
+        emit(new AppEvent.TorpedoStrike(c, Weapon.TORPEDO.area(c), outcomes, false));
+        emitAbilities();
+        log(remoteNick + " fired a torpedo at " + c + ": " + describeTorpedo(outcomes));
+        afterEnemyAction();
+    }
+
+    private void afterEnemyAction() {
         if (engine.state() == GameState.FINISHED) {
             gateway.send(Message.gameOver(true));
             gameOver(false);
@@ -479,18 +620,69 @@ public class GameController implements NetworkListener, HistoryProvider {
             warn("Unexpected result for " + c + ": " + e.getMessage());
             return;
         }
-        saveMove(GameRepository.LOCAL, c, r);
-        List<Coordinate> sunkCells = List.of();
-        if (r == ShotResult.SUNK && sunk != null && remoteFleet != null) {
-            sunkCells = remoteFleet.shipOf(sunk).map(s -> s.cells()).orElse(List.of());
-        }
-        emit(new AppEvent.ShotFired(c, r, sunk, sunkCells));
+        saveMove(nextTurn(), GameRepository.LOCAL, c, r, Weapon.SHOT);
+        emit(new AppEvent.ShotFired(c, r, sunk, enemyShipCells(r, sunk)));
         log("You shot at " + c + ": " + describe(r, sunk));
+        afterOwnAction();
+    }
+
+    private void remoteRadarResult(String coordText, String cellsText) throws ProtocolException {
+        if (engine == null || engine.state() != GameState.PLAYING) {
+            return;
+        }
+        Coordinate c = Coordinate.parse(coordText);
+        List<Coordinate> found = ProtocolCodec.decodeCells(cellsText);
+        try {
+            engine.applyRadarResult(c, new HashSet<>(found));
+        } catch (GameRuleException e) {
+            warn("Unexpected radar result: " + e.getMessage());
+            return;
+        }
+        saveAbility(nextTurn(), GameRepository.LOCAL, Weapon.RADAR, c, found.size());
+        emit(new AppEvent.RadarScan(c, Weapon.RADAR.area(c), found, true));
+        log("Radar around " + c + ": " + (found.isEmpty() ? "no ships." : found.size() + " ship cells found!"));
+        afterOwnAction();
+    }
+
+    private void remoteTorpedoResult(String coordText, String outcomesText) throws ProtocolException {
+        if (engine == null || engine.state() != GameState.PLAYING) {
+            return;
+        }
+        Coordinate c = Coordinate.parse(coordText);
+        List<ShotOutcome> outcomes = ProtocolCodec.decodeOutcomes(outcomesText);
+        try {
+            engine.applyTorpedoResult(c, outcomes);
+        } catch (GameRuleException e) {
+            warn("Unexpected torpedo result: " + e.getMessage());
+            return;
+        }
+        int turn = nextTurn();
+        List<ShotOutcome> withCells = new ArrayList<>();
+        for (ShotOutcome o : outcomes) {
+            saveMove(turn, GameRepository.LOCAL, o.coordinate(), o.result(), Weapon.TORPEDO);
+            withCells.add(new ShotOutcome(o.coordinate(), o.result(), o.sunkType(),
+                    enemyShipCells(o.result(), o.sunkType())));
+        }
+        saveAbility(turn, GameRepository.LOCAL, Weapon.TORPEDO, c, hits(outcomes));
+        emit(new AppEvent.TorpedoStrike(c, Weapon.TORPEDO.area(c), withCells, true));
+        log("Torpedo at " + c + ": " + describeTorpedo(outcomes));
+        afterOwnAction();
+    }
+
+    private void afterOwnAction() {
         if (engine.state() == GameState.FINISHED) {
             gameOver(true);
         } else {
             status(STATUS_ENEMY_TURN);
         }
+    }
+
+    /** Cells of a sunk enemy ship (known from the fleet in its READY message). */
+    private List<Coordinate> enemyShipCells(ShotResult r, ShipType sunk) {
+        if (r == ShotResult.SUNK && sunk != null && remoteFleet != null) {
+            return remoteFleet.shipOf(sunk).map(Ship::cells).orElse(List.of());
+        }
+        return List.of();
     }
 
     private void remoteChat(String encodedBody) throws ProtocolException {
@@ -520,9 +712,10 @@ public class GameController implements NetworkListener, HistoryProvider {
         } catch (IllegalArgumentException e) {
             return;
         }
-        if (engine != null && SHOT_ERRORS.contains(v)) {
+        if (engine != null && ACTION_ERRORS.contains(v)) {
             engine.cancelPendingShot();
             emit(new AppEvent.Error(message, false));
+            emitAbilities();
             boolean yourTurn = engine.isLocalTurn();
             emit(new AppEvent.TurnChanged(yourTurn));
             status(yourTurn ? STATUS_YOUR_TURN : STATUS_ENEMY_TURN);
@@ -535,12 +728,12 @@ public class GameController implements NetworkListener, HistoryProvider {
         engine = new GameEngine(serverMode);
         remoteFleet = null;
         turnNo = 0;
-        String mode = serverMode ? "SERVER" : "CLIENT";
+        String modeName = mode.name();
         String ip = remoteAddress;
         Integer p = port >= 1024 && port <= 65535 ? port : null;
         gameId = null;
         db(() -> {
-            long id = games.createGame(mode, ip, p);
+            long id = games.createGame(modeName, ip, p);
             gameId = id;
             games.linkPlayers(id, players.upsert(localNick), players.upsert(remoteNick));
         });
@@ -569,18 +762,38 @@ public class GameController implements NetworkListener, HistoryProvider {
         log(message);
     }
 
-    private void saveMove(String shooter, Coordinate c, ShotResult r) {
-        turnNo++;
+    private int nextTurn() {
+        return ++turnNo;
+    }
+
+    private void saveMove(int turn, String shooter, Coordinate c, ShotResult r, Weapon weapon) {
         Long id = gameId;
-        int turn = turnNo;
         if (id != null) {
-            db(() -> moves.save(id, turn, shooter, c, r));
+            db(() -> moves.save(id, turn, shooter, c, r, weapon.name()));
+        }
+    }
+
+    private void saveAbility(int turn, String user, Weapon weapon, Coordinate c, int found) {
+        Long id = gameId;
+        if (id != null) {
+            db(() -> abilities.save(id, turn, user, weapon.name(), c.toString(), found));
+        }
+    }
+
+    private void emitAbilities() {
+        if (engine != null) {
+            emit(new AppEvent.AbilitiesChanged(engine.usesLeft(Weapon.RADAR), engine.usesLeft(Weapon.TORPEDO),
+                    engine.enemyUsesLeft(Weapon.RADAR), engine.enemyUsesLeft(Weapon.TORPEDO)));
         }
     }
 
     private void sendError(RuleViolation v, String message) {
         gateway.send(Message.error(v.name(), message));
-        warn("Refused opponent's shot: " + v);
+        warn("Refused opponent's action: " + v);
+    }
+
+    private static int hits(List<ShotOutcome> outcomes) {
+        return (int) outcomes.stream().filter(o -> o.result().isHit()).count();
     }
 
     private static String describe(ShotResult r, ShipType sunk) {
@@ -590,6 +803,17 @@ public class GameController implements NetworkListener, HistoryProvider {
             case SUNK -> (sunk == null ? "ship" : sunk.displayName()) + " sunk!";
             case ALREADY_SHOT -> "already shot";
         };
+    }
+
+    private static String describeTorpedo(List<ShotOutcome> outcomes) {
+        int hits = hits(outcomes);
+        StringBuilder text = new StringBuilder(hits == 0 ? "no hits" : hits + " hit" + (hits > 1 ? "s" : ""));
+        for (ShotOutcome o : outcomes) {
+            if (o.result() == ShotResult.SUNK && o.sunkType() != null) {
+                text.append(", ").append(o.sunkType().displayName()).append(" sunk!");
+            }
+        }
+        return text.toString();
     }
 
     private void setState(ConnectionState s) {
@@ -676,17 +900,26 @@ public class GameController implements NetworkListener, HistoryProvider {
         }
     }
 
+    /** Shots, torpedo cells and radar scans of a game, in turn order. */
     @Override
     public List<MoveRow> moves(long id) {
         synchronized (lock) {
             List<MoveRow> rows = new ArrayList<>();
             try {
                 for (MoveRepository.Move m : moves.findByGame(id)) {
-                    rows.add(new MoveRow(m.turnNo(), m.shooter(), m.coord(), m.result(), toLocal(m.createdAt())));
+                    rows.add(new MoveRow(m.turnNo(), m.shooter(), m.weapon(), m.coord(), m.result(),
+                            toLocal(m.createdAt())));
+                }
+                for (AbilityRepository.AbilityUse a : abilities.findByGame(id)) {
+                    if (Weapon.RADAR.name().equals(a.ability())) {
+                        rows.add(new MoveRow(a.turnNo(), a.userRole(), a.ability(), a.coord(),
+                                a.found() + " found", toLocal(a.createdAt())));
+                    }
                 }
             } catch (SQLException e) {
                 LOG.warning("Cannot read moves: " + e.getMessage());
             }
+            rows.sort(Comparator.comparingInt(MoveRow::turn));
             return rows;
         }
     }
