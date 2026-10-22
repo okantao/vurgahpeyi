@@ -188,7 +188,7 @@ public class ShipAllocationPanel extends JPanel {
         }
         Ship ship = new Ship(type, c, orientation);
         if (ship.fitsOnBoard()) {
-            ownBoard.setPreview(ship.cells(), placement.canPlace(ship));
+            ownBoard.setGhost(ship, placement.canPlace(ship));
         } else {
             // Show the part that is on the board, in red.
             List<Coordinate> visible = new java.util.ArrayList<>();
@@ -216,12 +216,10 @@ public class ShipAllocationPanel extends JPanel {
         onFleetChanged.accept(placement.isFleetComplete());
     }
 
-    /** Paints the current placement on the own board (water + ships). */
+    /** Paints the current placement on the own board: clean sea with the ship hulls. */
     public void redrawBoard() {
         ownBoard.clear();
-        for (Ship s : placement.ships()) {
-            s.cells().forEach(c -> ownBoard.setCell(c, BoardPanel.CellView.SHIP));
-        }
+        ownBoard.setShips(placement.ships());
     }
 
     private void updateControls() {

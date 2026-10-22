@@ -67,7 +67,8 @@ public class ChatPanel extends JPanel {
         StyleConstants.setForeground(name, mine ? Theme.CHAT_ME : Theme.CHAT_ENEMY);
         StyleConstants.setBold(name, true);
         SimpleAttributeSet text = new SimpleAttributeSet();
-        StyleConstants.setForeground(text, Color.BLACK);
+        Color fg = history.getForeground();
+        StyleConstants.setForeground(text, fg == null ? Theme.TEXT : fg);
         try {
             doc.insertString(doc.getLength(), sender + ": ", name);
             doc.insertString(doc.getLength(), body + "\n", text);

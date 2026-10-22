@@ -7,9 +7,13 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.amiral.controller.ConnectionState;
 import com.amiral.controller.HistoryProvider;
+import com.amiral.controller.GameMode;
+import com.amiral.model.ComputerPlayer;
 import com.amiral.model.Coordinate;
 import com.amiral.model.Orientation;
 import com.amiral.model.ShipType;
+import com.amiral.model.Weapon;
+import java.util.Map;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -100,14 +104,15 @@ class UiComponentsTest {
             assertTrue(changes.get(changes.size() - 1));
             assertTrue(panel.readyButton().isEnabled());
             assertEquals(0, panel.shipBox().getItemCount());
-            assertEquals(BoardPanel.CellView.SHIP, board.cell(c("A5")));
+            assertEquals(5, board.ships().size(), "hulls drawn for all ships");
+            assertTrue(board.ships().stream().anyMatch(s -> s.occupies(c("A5"))));
 
             MouseEvent right = new MouseEvent(board, MouseEvent.MOUSE_PRESSED, 0, MouseEvent.BUTTON3_DOWN_MASK, 45,
                     45, 1, false, MouseEvent.BUTTON3);
             board.dispatchEvent(right);
             assertFalse(panel.placement().isFleetComplete());
             assertEquals(ShipType.CARRIER, panel.shipBox().getItemAt(0), "removed ship is back in the list");
-            assertEquals(BoardPanel.CellView.WATER, board.cell(c("A1")));
+            assertTrue(board.ships().stream().noneMatch(s -> s.occupies(c("A1"))));
 
             assertEquals(Orientation.H, panel.orientation());
             panel.rotate();
@@ -227,5 +232,100 @@ class UiComponentsTest {
         });
         assertEquals("Games: 4 · Wins: 2 · Losses: 1 · Win rate: %67",
                 HistoryDialog.formatStats(new HistoryProvider.Stats(4, 2, 1, 1, 66.67)));
+    }
+
+    @Test
+    void computerModeDisablesNetworkFields() throws Exception {
+        onEdt(() -> {
+            ConnectionPanel p = new ConnectionPanel("192.168.1.10", "Kaan");
+            assertFalse(p.difficultyBox().isEnabled());
+            p.selectComputerMode();
+            assertEquals(GameMode.AI, p.mode());
+            assertEquals("Start game", p.startButton().getText());
+            assertEquals("End game", p.stopButton().getText());
+            assertTrue(p.difficultyBox().isEnabled());
+            assertFalse(p.ipField().isEnabled());
+            List<String> started = new ArrayList<>();
+            p.setActions(new ConnectionPanel.Actions() {
+                @Override
+                public void start(GameMode mode, String host, int port, String nickname,
+                        ComputerPlayer.Difficulty difficulty) {
+                    started.add(mode + " " + nickname + " " + difficulty);
+                }
+
+                @Override
+                public void stop(GameMode mode) {
+                }
+            });
+            p.setPortText("80");
+            p.startButton().doClick();
+            assertEquals(List.of("AI Kaan NORMAL"), started, "port is not needed against the computer");
+        });
+    }
+
+    @Test
+    void weaponBarCountsAndSelection() throws Exception {
+        onEdt(() -> {
+            WeaponPanel w = new WeaponPanel();
+            List<Weapon> changes = new ArrayList<>();
+            w.setOnChange(changes::add);
+            assertEquals(Weapon.SHOT, w.selected());
+            assertFalse(w.button(Weapon.RADAR).isEnabled(), "inactive until our turn");
+            w.setActive(true);
+            assertTrue(w.button(Weapon.RADAR).isEnabled());
+            w.select(Weapon.RADAR);
+            assertEquals(Weapon.RADAR, w.selected());
+            w.setCounts(0, 2, 3, 1);
+            assertEquals(Weapon.SHOT, w.selected(), "used-up weapon falls back to shot");
+            assertFalse(w.button(Weapon.RADAR).isEnabled());
+            w.select(Weapon.RADAR);
+            assertEquals(Weapon.SHOT, w.selected());
+            assertEquals(2, w.left(Weapon.TORPEDO));
+            w.reset();
+            assertEquals(3, w.left(Weapon.RADAR));
+            assertEquals(List.of(Weapon.RADAR, Weapon.SHOT, Weapon.SHOT), changes);
+        });
+    }
+
+    @Test
+    void radarRevealsNearCellsFirst() throws Exception {
+        onEdt(() -> {
+            BoardPanel board = new BoardPanel();
+            board.setSize(330, 330);
+            Map<Coordinate, Long> delays = board.playRadar(Weapon.RADAR.area(c("E5")), List.of(c("E5"), c("G7")));
+            assertTrue(delays.get(c("E5")) < delays.get(c("G7")));
+            assertTrue(board.isAnimating());
+            board.markDetected(delays);
+            assertTrue(board.isDetected(c("G7")));
+            board.clear();
+            assertFalse(board.isDetected(c("G7")));
+            assertFalse(board.isAnimating());
+        });
+    }
+
+    @Test
+    void sunkShipIsRebuiltFromCells() throws Exception {
+        onEdt(() -> {
+            BoardPanel board = new BoardPanel();
+            board.addShip(ShipType.CRUISER, List.of(c("C5"), c("D5"), c("E5")));
+            assertEquals(com.amiral.model.Orientation.V, board.ships().get(0).orientation());
+            assertEquals(c("C5"), board.ships().get(0).start());
+            board.addShip(ShipType.DESTROYER, List.of(c("J2"), c("J1")));
+            assertEquals(c("J1"), board.ships().get(1).start());
+            assertEquals(com.amiral.model.Orientation.H, board.ships().get(1).orientation());
+        });
+    }
+
+    @Test
+    void fleetStatusCountsSunkShips() throws Exception {
+        onEdt(() -> {
+            FleetStatusPanel f = new FleetStatusPanel();
+            assertEquals(5, f.afloat());
+            f.setSunk(ShipType.DESTROYER);
+            f.setSunk(ShipType.DESTROYER);
+            assertEquals(4, f.afloat());
+            f.reset();
+            assertTrue(f.sunk().isEmpty());
+        });
     }
 }

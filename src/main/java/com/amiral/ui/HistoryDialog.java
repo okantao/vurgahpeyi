@@ -28,7 +28,7 @@ public class HistoryDialog extends JDialog {
     private final transient HistoryProvider provider;
     private final JLabel statsLabel = new JLabel();
     private final DefaultTableModel games = readOnlyModel("ID", "Mode", "Started", "Ended", "Remote IP", "Result");
-    private final DefaultTableModel moves = readOnlyModel("Turn", "Shooter", "Cell", "Result", "Time");
+    private final DefaultTableModel moves = readOnlyModel("Turn", "Player", "Weapon", "Cell", "Result", "Time");
     private final JLabel movesTitle = new JLabel("Double-click a game to see its moves");
 
     public HistoryDialog(Frame owner, HistoryProvider provider) {
@@ -106,7 +106,7 @@ public class HistoryDialog extends JDialog {
         moves.setRowCount(0);
         List<HistoryProvider.MoveRow> list = provider.moves(gameId);
         for (HistoryProvider.MoveRow m : list) {
-            moves.addRow(new Object[] {m.turn(), m.shooter(), m.coord(), m.result(), m.time()});
+            moves.addRow(new Object[] {m.turn(), m.shooter(), m.weapon(), m.coord(), m.result(), m.time()});
         }
         movesTitle.setText("Moves of game " + gameId + " (" + list.size() + ")");
     }

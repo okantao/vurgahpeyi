@@ -1,14 +1,20 @@
 package com.amiral.ui;
 
 import com.amiral.controller.ConnectionState;
+import com.amiral.controller.GameMode;
+import com.amiral.model.ComputerPlayer;
+import java.awt.Component;
 import java.awt.GridBagConstraints;
 import java.awt.GridBagLayout;
 import java.awt.Insets;
 import java.util.OptionalInt;
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.DefaultListCellRenderer;
 import javax.swing.JButton;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
@@ -17,7 +23,7 @@ import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 
-/** "Connection Configuration" box: server/client mode, IP, port and start/stop buttons. */
+/** "Connection Configuration" box: server, client or computer opponent; IP, port, name and start/stop. */
 public class ConnectionPanel extends JPanel {
 
     private static final long serialVersionUID = 1L;
@@ -25,15 +31,19 @@ public class ConnectionPanel extends JPanel {
 
     /** What the user asked for. */
     public interface Actions {
-        void start(boolean serverMode, String host, int port, String nickname);
+        void start(GameMode mode, String host, int port, String nickname, ComputerPlayer.Difficulty difficulty);
 
-        void stop(boolean serverMode);
+        void stop(GameMode mode);
     }
 
     private final JRadioButton serverRadio = new JRadioButton("Play as server", true);
     private final JRadioButton clientRadio = new JRadioButton("Play as client");
+    private final JRadioButton computerRadio = new JRadioButton("Play vs computer");
+    private final JComboBox<ComputerPlayer.Difficulty> difficulty =
+            new JComboBox<>(ComputerPlayer.Difficulty.values());
     private final JLabel ipLabel = new JLabel("My IP Address:");
     private final JTextField ipField = new JTextField();
+    private final JLabel portLabel = new JLabel("Port:");
     private final JTextField portField = new JTextField(Integer.toString(DEFAULT_PORT));
     private final JLabel portError = new JLabel(" ");
     private final JTextField nickField = new JTextField();
@@ -53,8 +63,21 @@ public class ConnectionPanel extends JPanel {
         ButtonGroup group = new ButtonGroup();
         group.add(serverRadio);
         group.add(clientRadio);
+        group.add(computerRadio);
         serverRadio.addActionListener(e -> modeChanged());
         clientRadio.addActionListener(e -> modeChanged());
+        computerRadio.addActionListener(e -> modeChanged());
+        difficulty.setSelectedItem(ComputerPlayer.Difficulty.NORMAL);
+        difficulty.setRenderer(new DefaultListCellRenderer() {
+            private static final long serialVersionUID = 1L;
+
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                    boolean isSelected, boolean cellHasFocus) {
+                Object text = value instanceof ComputerPlayer.Difficulty d ? d.label() : value;
+                return super.getListCellRendererComponent(list, text, index, isSelected, cellHasFocus);
+            }
+        });
         ipField.setText(localIp);
         nickField.setText(defaultNickname);
         portError.setForeground(Theme.ERROR_BORDER);
@@ -62,10 +85,12 @@ public class ConnectionPanel extends JPanel {
 
         serverRadio.setToolTipText("Host the game and wait for an opponent");
         clientRadio.setToolTipText("Join a game hosted by another player");
+        computerRadio.setToolTipText("Play against the computer on this machine");
+        difficulty.setToolTipText("Easy: random shots · Normal: hunts your ships · Hard: probability map");
         portField.setToolTipText("TCP port, 1024-65535");
         nickField.setToolTipText("Your name shown to the opponent (1-20 characters)");
-        startButton.setToolTipText("Start the server / connect to the server");
-        stopButton.setToolTipText("Stop the server / disconnect");
+        startButton.setToolTipText("Start the server / connect / start the game");
+        stopButton.setToolTipText("Stop the server / disconnect / end the game");
 
         portField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
@@ -84,15 +109,17 @@ public class ConnectionPanel extends JPanel {
             }
         });
         startButton.addActionListener(e -> {
-            OptionalInt port = validatePort();
+            GameMode mode = mode();
+            OptionalInt port = mode == GameMode.AI ? OptionalInt.of(DEFAULT_PORT) : validatePort();
             String nick = nickname();
             if (port.isPresent() && actions != null && !nick.isEmpty()) {
-                actions.start(serverRadio.isSelected(), ipField.getText().trim(), port.getAsInt(), nick);
+                actions.start(mode, ipField.getText().trim(), port.getAsInt(), nick,
+                        (ComputerPlayer.Difficulty) difficulty.getSelectedItem());
             }
         });
         stopButton.addActionListener(e -> {
             if (actions != null) {
-                actions.stop(serverRadio.isSelected());
+                actions.stop(mode());
             }
         });
 
@@ -105,24 +132,29 @@ public class ConnectionPanel extends JPanel {
         add(serverRadio, g);
         add(clientRadio, g);
         g.gridwidth = 1;
-        g.weightx = 0;
         g.gridy = 2;
+        add(computerRadio, g);
+        g.gridx = 1;
+        add(difficulty, g);
+        g.gridx = 0;
+        g.gridy = 3;
+        g.weightx = 0;
         add(ipLabel, g);
         g.gridx = 1;
         g.weightx = 1;
         add(ipField, g);
         g.gridx = 0;
-        g.gridy = 3;
+        g.gridy = 4;
         g.weightx = 0;
-        add(new JLabel("Port:"), g);
+        add(portLabel, g);
         g.gridx = 1;
         g.weightx = 1;
         add(portField, g);
         g.gridx = 0;
-        g.gridy = 4;
+        g.gridy = 5;
         g.gridwidth = 2;
         add(portError, g);
-        g.gridy = 5;
+        g.gridy = 6;
         g.gridwidth = 1;
         g.weightx = 0;
         add(new JLabel("Nickname:"), g);
@@ -130,7 +162,8 @@ public class ConnectionPanel extends JPanel {
         g.weightx = 1;
         add(nickField, g);
         g.gridx = 0;
-        g.gridy = 6;
+        g.gridy = 7;
+        g.insets = new Insets(6, 2, 2, 2);
         add(startButton, g);
         g.gridx = 1;
         add(stopButton, g);
@@ -142,13 +175,35 @@ public class ConnectionPanel extends JPanel {
         this.actions = actions;
     }
 
+    public GameMode mode() {
+        return serverRadio.isSelected() ? GameMode.SERVER : clientRadio.isSelected() ? GameMode.CLIENT : GameMode.AI;
+    }
+
     private void modeChanged() {
-        boolean server = serverRadio.isSelected();
-        ipLabel.setText(server ? "My IP Address:" : "Server IP:");
-        ipField.setEditable(!server);
-        ipField.setText(server ? localIp : (ipField.getText().equals(localIp) ? "127.0.0.1" : ipField.getText()));
-        startButton.setText(server ? "Start server" : "Connect");
-        stopButton.setText(server ? "Stop server" : "Disconnect");
+        GameMode mode = mode();
+        ipLabel.setText(mode == GameMode.CLIENT ? "Server IP:" : "My IP Address:");
+        ipField.setEditable(mode == GameMode.CLIENT);
+        if (mode == GameMode.CLIENT) {
+            ipField.setText(ipField.getText().equals(localIp) ? "127.0.0.1" : ipField.getText());
+        } else {
+            ipField.setText(localIp);
+        }
+        startButton.setText(switch (mode) {
+            case SERVER -> "Start server";
+            case CLIENT -> "Connect";
+            case AI -> "Start game";
+        });
+        stopButton.setText(switch (mode) {
+            case SERVER -> "Stop server";
+            case CLIENT -> "Disconnect";
+            case AI -> "End game";
+        });
+        if (mode == GameMode.AI) {
+            portField.setBorder(normalBorder);
+            portError.setText(" ");
+        } else {
+            validatePort();
+        }
         refreshButtons(state);
     }
 
@@ -179,17 +234,22 @@ public class ConnectionPanel extends JPanel {
         return n.length() > 20 ? n.substring(0, 20) : n;
     }
 
-    /** Enables the buttons according to ROADMAP table 7.4. */
+    /** Enables the buttons according to ROADMAP table 7.4 (plus the computer mode). */
     public final void refreshButtons(ConnectionState s) {
         this.state = s;
         boolean idle = s == ConnectionState.IDLE;
+        boolean network = mode() != GameMode.AI;
         startButton.setEnabled(idle);
         stopButton.setEnabled(!idle && s != ConnectionState.CONNECTING);
         serverRadio.setEnabled(idle);
         clientRadio.setEnabled(idle);
-        portField.setEnabled(idle);
+        computerRadio.setEnabled(idle);
+        difficulty.setEnabled(idle && !network);
+        portField.setEnabled(idle && network);
+        portLabel.setEnabled(network);
         nickField.setEnabled(idle);
-        ipField.setEnabled(idle || serverRadio.isSelected());
+        ipField.setEnabled(network && (idle || mode() == GameMode.SERVER));
+        ipLabel.setEnabled(network);
     }
 
     public boolean isServerMode() {
@@ -198,6 +258,11 @@ public class ConnectionPanel extends JPanel {
 
     public void selectClientMode() {
         clientRadio.setSelected(true);
+        modeChanged();
+    }
+
+    public void selectComputerMode() {
+        computerRadio.setSelected(true);
         modeChanged();
     }
 
@@ -223,5 +288,9 @@ public class ConnectionPanel extends JPanel {
 
     JLabel portError() {
         return portError;
+    }
+
+    JComboBox<ComputerPlayer.Difficulty> difficultyBox() {
+        return difficulty;
     }
 }

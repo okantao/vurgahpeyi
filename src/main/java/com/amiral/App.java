@@ -4,8 +4,13 @@ import com.amiral.controller.GameController;
 import com.amiral.controller.SocketGateway;
 import com.amiral.db.Database;
 import com.amiral.ui.MainFrame;
+import com.amiral.ui.Theme;
 import com.amiral.util.AppLogger;
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import java.awt.Insets;
 import java.sql.SQLException;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
@@ -55,13 +60,27 @@ public final class App {
             }
         }));
         SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (ReflectiveOperationException | javax.swing.UnsupportedLookAndFeelException e) {
-                LOG.fine("Default look and feel kept: " + e);
-            }
+            setupLookAndFeel();
             new MainFrame(controller, defaultNickname()).setVisible(true);
         });
+    }
+
+    /** FlatLaf dark theme tuned to the naval colours of {@link Theme}. */
+    static void setupLookAndFeel() {
+        FlatLaf.setGlobalExtraDefaults(Map.of(
+                "@accentColor", "#3FA9F5",
+                "@background", "#142133",
+                "@foreground", "#DCE7F3"));
+        FlatDarkLaf.setup();
+        UIManager.put("Component.arc", 10);
+        UIManager.put("Button.arc", 10);
+        UIManager.put("TextComponent.arc", 8);
+        UIManager.put("ScrollBar.thumbArc", 999);
+        UIManager.put("ScrollBar.thumbInsets", new Insets(2, 2, 2, 2));
+        UIManager.put("TitledBorder.titleColor", Theme.ACCENT);
+        UIManager.put("TitledBorder.font", Theme.LABEL_FONT);
+        UIManager.put("TitlePane.unifiedBackground", true);
+        UIManager.put("ToggleButton.selectedBackground", Theme.alpha(Theme.ACCENT, 90));
     }
 
     /** OS user name, cut to the 20 characters the database allows. */
