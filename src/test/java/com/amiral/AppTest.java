@@ -8,6 +8,6 @@ class AppTest {
 
     @Test
     void titleMatchesReferenceUi() {
-        assertEquals("BattleShip v1.0", App.TITLE);
+        assertEquals("Vurgahpeyi v1.0", App.TITLE);
     }
 }

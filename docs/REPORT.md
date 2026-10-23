@@ -1,8 +1,8 @@
-# BattleShip v1.0 (Amiral Battı) — Proje Raporu
+# Vurgahpeyi v1.0 (Amiral Battı) — Proje Raporu
 
 ## 1. Giriş
 
-Bu proje, iki oyuncunun ağ üzerinden (TCP) veya bir oyuncunun bilgisayara karşı oynadığı Amiral Battı oyunudur. Klasik kurallara ek olarak her oyuncunun 3 radar (4×4 tarama) ve 2 torpido (3×3 saldırı) hakkı vardır. Ödevin ana isteri, uygulamanın altyapısında **veritabanı yaklaşımı** bulunmasıdır: oyunlar, hamleler, gemi yerleşimleri, sohbet ve olay kayıtları SQLite veritabanında kalıcı olarak tutulur, geçmiş ve istatistikler arayüzde sorgulanarak gösterilir. Arayüz, referans ekran görüntüsündeki "BattleShip v1.0" penceresini temel alır.
+Bu proje, iki oyuncunun ağ üzerinden (TCP) veya bir oyuncunun bilgisayara karşı oynadığı Amiral Battı oyunudur. Klasik kurallara ek olarak her oyuncunun 3 radar (4×4 tarama) ve 2 torpido (3×3 saldırı) hakkı vardır. Ödevin ana isteri, uygulamanın altyapısında **veritabanı yaklaşımı** bulunmasıdır: oyunlar, hamleler, gemi yerleşimleri, sohbet ve olay kayıtları SQLite veritabanında kalıcı olarak tutulur, geçmiş ve istatistikler arayüzde sorgulanarak gösterilir. Arayüz, referans ekran görüntüsündeki "Vurgahpeyi v1.0" penceresini temel alır.
 
 ## 2. Gereksinimler ve karşılanma durumu
 

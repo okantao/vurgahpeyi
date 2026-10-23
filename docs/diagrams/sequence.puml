@@ -1,5 +1,5 @@
 @startuml sequence
-title BattleShip v1.0 - Connect, place, one shot, game over
+title Vurgahpeyi v1.0 - Connect, place, one shot, game over
 
 actor "Server player" as SP
 participant "MainFrame\n(server)" as SUI

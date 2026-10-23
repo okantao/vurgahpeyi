@@ -1,4 +1,4 @@
-# BattleShip v1.0 (Amiral Battı)
+# Vurgahpeyi v1.0 (Amiral Battı)
 
 ![CI](../../actions/workflows/ci.yml/badge.svg)
 
@@ -31,7 +31,7 @@ Birim + entegrasyon testlerini çalıştırır; kapsam raporu: `target/site/jaco
 
 ```
 ./mvnw -B package -DskipTests
-java -jar target/battleship.jar
+java -jar target/vurgahpeyi.jar
 ```
 
 veya jar üretmeden: `./mvnw -q compile exec:java`.
@@ -39,7 +39,7 @@ veya jar üretmeden: `./mvnw -q compile exec:java`.
 İsteğe bağlı argüman: veritabanı adresi (varsayılan `jdbc:sqlite:data/amiral.db`). Aynı bilgisayarda ikinci pencere için:
 
 ```
-java -jar target/battleship.jar jdbc:sqlite:data/client.db
+java -jar target/vurgahpeyi.jar jdbc:sqlite:data/client.db
 ```
 
 Hızlı deneme:

@@ -1,12 +1,12 @@
 @startuml usecase
-title BattleShip v1.1 - Use cases
+title Vurgahpeyi v1.1 - Use cases
 left to right direction
 
 actor "Player (server role)" as Server
 actor "Player (client role)" as Client
 actor "System" as System
 
-rectangle BattleShip {
+rectangle Vurgahpeyi {
   usecase "Start / stop server" as UC1
   usecase "Connect / disconnect" as UC2
   usecase "Place ships\n(manual or automatic)" as UC3

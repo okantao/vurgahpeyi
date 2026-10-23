@@ -8,7 +8,7 @@
 | Öncelik | Yüksek |
 | Tür | Fonksiyonel, yapay zekâ davranışı |
 | Hazırlayan / Tarih | 22.10.2026 |
-| Sürüm | BattleShip v1.1 |
+| Sürüm | Vurgahpeyi v1.1 |
 
 ## 1. Amaç
 
@@ -16,7 +16,7 @@ Ağ bağlantısı olmadan bilgisayar rakibe karşı oynanabildiğini, bilgisayar
 
 ## 2. Ön koşullar
 
-* `target/battleship.jar` derlenmiş.
+* `target/vurgahpeyi.jar` derlenmiş.
 * Ağ gerekmez.
 
 ## 3. Test verisi
