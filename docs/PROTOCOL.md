@@ -1,4 +1,4 @@
-# BattleShip Network Protocol
+# Vurgahpeyi Network Protocol
 
 Version 1.1 (adds radar and torpedo). Implemented in `com.amiral.net` (transport) and `com.amiral.controller.GameController` (game rules).
 

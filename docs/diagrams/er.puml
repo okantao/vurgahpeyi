@@ -1,5 +1,5 @@
 @startuml er
-title BattleShip v1.1 - ER diagram (SQLite)
+title Vurgahpeyi v1.1 - ER diagram (SQLite)
 hide circle
 skinparam linetype ortho
 

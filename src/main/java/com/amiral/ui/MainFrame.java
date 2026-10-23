@@ -42,7 +42,7 @@ import javax.swing.WindowConstants;
 public class MainFrame extends JFrame {
 
     private static final long serialVersionUID = 1L;
-    public static final String TITLE = "BattleShip v1.0";
+    public static final String TITLE = "Vurgahpeyi v1.0";
     static final String ABORT_QUESTION = "A game is in progress. Abort it?";
 
     private final transient GameController controller;
@@ -131,7 +131,7 @@ public class MainFrame extends JFrame {
         JPanel header = new JPanel(new BorderLayout());
         header.setBackground(Theme.HEADER);
         header.setBorder(BorderFactory.createEmptyBorder(6, 14, 6, 14));
-        JLabel logo = new JLabel("BATTLESHIP");
+        JLabel logo = new JLabel("VURGAHPEYI");
         logo.setFont(Theme.LOGO_FONT);
         logo.setForeground(Theme.ACCENT);
         logo.setPreferredSize(new Dimension(220, 36));

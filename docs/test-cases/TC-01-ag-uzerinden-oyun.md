@@ -8,7 +8,7 @@
 | Öncelik | Yüksek |
 | Tür | Fonksiyonel, entegrasyon (ağ + veritabanı + arayüz) |
 | Hazırlayan / Tarih | 22.10.2026 |
-| Sürüm | BattleShip v1.1 |
+| Sürüm | Vurgahpeyi v1.1 |
 
 ## 1. Amaç
 
@@ -16,7 +16,7 @@ Bir oyuncunun sunucu, diğerinin istemci olarak bağlanabildiğini; gemi yerleş
 
 ## 2. Ön koşullar
 
-* JDK 17+ kurulu, `target/battleship.jar` derlenmiş (`mvnw.cmd -B package -DskipTests`).
+* JDK 17+ kurulu, `target/vurgahpeyi.jar` derlenmiş (`mvnw.cmd -B package -DskipTests`).
 * Aynı bilgisayarda iki pencere veya aynı ağda iki bilgisayar.
 * 9090/TCP portu boş; iki bilgisayarlı testte güvenlik duvarı bu porta izin veriyor.
 
@@ -34,9 +34,9 @@ Bir oyuncunun sunucu, diğerinin istemci olarak bağlanabildiğini; gemi yerleş
 
 | # | Eylem | Beklenen sonuç | Gerçek sonuç | Durum |
 |---|---|---|---|---|
-| 1 | Pencere A: `java -jar target\battleship.jar` | Pencere açılır, `data/amiral.db` oluşur, banner `READY TO PLAY` | Beklendiği gibi | PASS |
+| 1 | Pencere A: `java -jar target\vurgahpeyi.jar` | Pencere açılır, `data/amiral.db` oluşur, banner `READY TO PLAY` | Beklendiği gibi | PASS |
 | 2 | A: `Play as server`, Nickname `Kaptan`, `Start server` | Output: `Server is opened! (port 9090)`, banner `WAITING FOR OPPONENT`, `My IP Address` dolu | Beklendiği gibi | PASS |
-| 3 | Pencere B: `java -jar target\battleship.jar jdbc:sqlite:data/client.db` | İkinci pencere açılır | Beklendiği gibi | PASS |
+| 3 | Pencere B: `java -jar target\vurgahpeyi.jar jdbc:sqlite:data/client.db` | İkinci pencere açılır | Beklendiği gibi | PASS |
 | 4 | B: `Play as client`, Server IP `127.0.0.1`, Nickname `Amiral`, `Connect` | A: `Amiral wants to join`; B: `Connected to Kaptan`; iki pencerede banner `PLACE YOUR SHIPS`, başlıkta `vs …` | Beklendiği gibi | PASS |
 | 5 | Üçüncü bir pencereden aynı sunucuya bağlanmayı dene | Hata: `Rejected by server: ALREADY_CONNECTED` | Otomatik testte doğrulandı (`GameLoopbackIT#secondClientIsRejected`) | PASS |
 | 6 | İki pencerede `Ready` | A: `YOUR TURN` (yeşil, düşman tahtası parlar); B: `ENEMY'S TURN` (düşman tahtası soluk) | Beklendiği gibi | PASS |

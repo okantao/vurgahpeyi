@@ -8,7 +8,7 @@
 | Öncelik | Yüksek |
 | Tür | Fonksiyonel, kural, sınır değer |
 | Hazırlayan / Tarih | 22.10.2026 |
-| Sürüm | BattleShip v1.1 |
+| Sürüm | Vurgahpeyi v1.1 |
 
 ## 1. Amaç
 

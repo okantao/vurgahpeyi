@@ -3,13 +3,13 @@
 ## 1. Başlatma
 
 ```
-java -jar target/battleship.jar
+java -jar target/vurgahpeyi.jar
 ```
 
 İsteğe bağlı ilk argüman veritabanı adresidir. Aynı bilgisayarda iki pencere açarken her birinin kendi geçmişini tutması için farklı dosya verebilirsiniz:
 
 ```
-java -jar target/battleship.jar jdbc:sqlite:data/client.db
+java -jar target/vurgahpeyi.jar jdbc:sqlite:data/client.db
 ```
 
 ## 2. Ekran
